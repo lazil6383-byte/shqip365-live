@@ -3,105 +3,96 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shqip365 | Ndeshjet Live</title>
+  <title>Shqip365 - Live Ndeshjet</title>
   <style>
     body {
+      background-color: #002b1e;
+      color: #fff;
       font-family: Arial, sans-serif;
-      background-color: #002a1f;
-      color: white;
-      margin: 0;
-      padding: 0;
       text-align: center;
+      padding: 20px;
     }
-
-    header {
-      background-color: #004d3a;
-      padding: 15px;
-      font-size: 24px;
-      font-weight: bold;
+    h1 {
       color: #ffcc00;
     }
-
     .buttons {
-      margin: 20px 0;
+      margin-bottom: 20px;
     }
-
-    .buttons button {
-      background-color: #004d3a;
-      border: none;
+    button {
+      background-color: #004d33;
       color: white;
-      padding: 10px 15px;
+      border: none;
+      padding: 10px 20px;
       margin: 5px;
-      border-radius: 20px;
+      border-radius: 6px;
       cursor: pointer;
     }
-
-    .buttons button:hover {
-      background-color: #008f65;
+    button.active {
+      background-color: #00b36b;
     }
-
     .match {
-      background-color: #013524;
+      background: #004d33;
       margin: 10px auto;
-      padding: 15px;
+      padding: 10px;
       width: 90%;
-      border-radius: 10px;
-      box-shadow: 0 0 5px #00ff99;
-    }
-
-    small {
-      color: #aaa;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
-  <header>Shqip365</header>
-
+  <h1>Shqip365</h1>
   <div class="buttons">
-    <button id="liveBtn">Live</button>
+    <button id="liveBtn" class="active">Live</button>
     <button id="soonBtn">Së shpejti</button>
-    <button id="finishedBtn">Përfunduar</button>
+    <button id="doneBtn">Përfunduar</button>
   </div>
-
   <div id="matches">Loading...</div>
 
   <script>
     async function loadMatches(type = "live") {
-      const container = document.getElementById("matches");
-      container.innerHTML = "Loading...";
-
+      document.getElementById("matches").innerHTML = "Loading...";
       try {
         const response = await fetch(`/matches?type=${type}`);
         const data = await response.json();
 
-        container.innerHTML = "";
-
-        if (data.response && data.response.length > 0) {
-          data.response.forEach(match => {
-            const div = document.createElement("div");
-            div.className = "match";
-            div.innerHTML = `
-              <strong>${match.teams.home.name}</strong>
-              ${match.goals.home} - ${match.goals.away}
-              <strong>${match.teams.away.name}</strong>
-              <br>
-              <small>${match.league.name}</small>
-            `;
-            container.appendChild(div);
-          });
-        } else {
-          container.innerHTML = "Nuk ka ndeshje për momentin.";
+        if (!data.response || data.response.length === 0) {
+          document.getElementById("matches").innerHTML = "Nuk ka ndeshje për momentin ⚽";
+          return;
         }
 
+        const matchesHtml = data.response.map(m => `
+          <div class="match">
+            <h3>${m.teams.home.name} vs ${m.teams.away.name}</h3>
+            <p><strong>Rezultat:</strong> ${m.goals.home ?? 0} - ${m.goals.away ?? 0}</p>
+            <p><small>${m.league.name} | ${m.fixture.status.long}</small></p>
+          </div>
+        `).join("");
+
+        document.getElementById("matches").innerHTML = matchesHtml;
+
       } catch (err) {
-        container.innerHTML = "Gabim gjatë marrjes së ndeshjeve.";
-        console.error("❌ Gabim:", err);
+        console.error(err);
+        document.getElementById("matches").innerHTML = "❌ Gabim gjatë ngarkimit të ndeshjeve.";
       }
     }
 
-    document.getElementById("liveBtn").addEventListener("click", () => loadMatches("live"));
-    document.getElementById("soonBtn").addEventListener("click", () => loadMatches("upcoming"));
-    document.getElementById("finishedBtn").addEventListener("click", () => loadMatches("finished"));
+    document.getElementById("liveBtn").addEventListener("click", () => {
+      setActive("liveBtn");
+      loadMatches("live");
+    });
+    document.getElementById("soonBtn").addEventListener("click", () => {
+      setActive("soonBtn");
+      loadMatches("upcoming");
+    });
+    document.getElementById("doneBtn").addEventListener("click", () => {
+      setActive("doneBtn");
+      loadMatches("finished");
+    });
+
+    function setActive(id) {
+      document.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+    }
 
     loadMatches();
   </script>
