@@ -6,33 +6,58 @@ const app = express();
 app.use(cors());
 app.use(express.static("public"));
 
-const API_KEY = "263701d881c64474becfc922b7dd95a6"; // vendos këtu API key tënden
+const API_KEY = "263701d881c64474becfc922b7dd95a6"; // vendose API key-in tënd këtu
+
+// Funksion ndihmës për të marrë datën e nesërme
+function getTomorrowDate() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split("T")[0];
+}
 
 app.get("/matches", async (req, res) => {
   const type = req.query.type || "live";
   let endpoint = "";
 
-  if (type === "live") {
-    endpoint = "https://v3.football.api-sports.io/fixtures?live=all";
-  } else if (type === "upcoming") {
-    endpoint = "https://v3.football.api-sports.io/fixtures?next=20";
-  } else if (type === "finished") {
-    endpoint = "https://v3.football.api-sports.io/fixtures?last=20";
-  }
-
   try {
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: {
-        "x-apisports-key": API_KEY,
-        "x-rapidapi-host": "v3.football.api-sports.io"
+    if (type === "live") {
+      // 1️⃣ Fillimisht marrim ndeshjet live
+      endpoint = "https://v3.football.api-sports.io/fixtures?live=all";
+      let response = await fetch(endpoint, {
+        headers: { "x-apisports-key": API_KEY },
+      });
+      let data = await response.json();
+
+      // 2️⃣ Nëse s’ka live, kalojmë te ndeshjet e nesërme
+      if (!data.response || data.response.length === 0) {
+        const tomorrow = getTomorrowDate();
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
+        response = await fetch(endpoint, {
+          headers: { "x-apisports-key": API_KEY },
+        });
+        data = await response.json();
       }
-    });
-    const data = await response.json();
-    res.json(data);
+
+      res.json(data);
+    } else if (type === "upcoming") {
+      const tomorrow = getTomorrowDate();
+      endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
+      const response = await fetch(endpoint, {
+        headers: { "x-apisports-key": API_KEY },
+      });
+      const data = await response.json();
+      res.json(data);
+    } else if (type === "finished") {
+      endpoint = "https://v3.football.api-sports.io/fixtures?last=20";
+      const response = await fetch(endpoint, {
+        headers: { "x-apisports-key": API_KEY },
+      });
+      const data = await response.json();
+      res.json(data);
+    }
   } catch (error) {
-    console.error("Gabim gjatë marrjes së të dhënave:", error);
-    res.status(500).json({ error: "Nuk u morën të dhënat nga API" });
+    console.error("Gabim:", error);
+    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve" });
   }
 });
 
