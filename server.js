@@ -6,12 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.static("public"));
 
-const PORT = process.env.PORT || 10000;
+// 🔑 Vendos API KEY tënden këtu
+const API_KEY = "8a0ecad2149f5ccf5da3c61dbaacf6b9";
 
-// 🔑 Vendos këtu API KEY që ke nga API-Football
-const API_KEY = "8a0ecad2149f5ccf5da3c61dbaacf6b9"; // ← zëvendëso me çelësin tënd
-
-// Endpoint për ndeshjet live / upcoming / finished
+// Endpoint për ndeshjet (live, upcoming, finished)
 app.get("/matches", async (req, res) => {
   const type = req.query.type || "live";
   let url = "";
@@ -27,24 +25,25 @@ app.get("/matches", async (req, res) => {
   try {
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        "x-apisports-key": API_KEY,
-      },
+      headers: { "x-apisports-key": API_KEY }
     });
 
     const data = await response.json();
 
+    // kontrollo nëse API ka dhënë ndonjë error
     if (data.errors && Object.keys(data.errors).length > 0) {
       console.error("❌ API Error:", data.errors);
+      return res.status(500).json({ error: "Gabim nga API-Football" });
     }
 
+    // Dërgo të dhënat te faqja
     res.json(data);
+
   } catch (error) {
-    console.error("Gabim gjatë marrjes së ndeshjeve:", error);
-    res.status(500).json({ message: "Gabim gjatë marrjes së ndeshjeve" });
+    console.error("❌ Gabim gjatë marrjes së ndeshjeve:", error);
+    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve" });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Serveri po punon në portin ${PORT}`);
-});
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`✅ Serveri po punon në portin ${PORT}`));
