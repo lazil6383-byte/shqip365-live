@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shqip365 Live - Football Matches</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      background-color: #0a0a0a;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #1b1b1b;
+      padding: 15px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ff5a;
+    }
+
+    .match-list {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 10px;
+    }
+
+    .match {
+      background-color: #161616;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid #00ff5a;
+    }
+
+    .teams {
+      flex: 2;
+    }
+
+    .teams span {
+      display: block;
+      font-size: 16px;
+      margin: 2px 0;
+    }
+
+    .odds {
+      flex: 1;
+      text-align: right;
+    }
+
+    .odds button {
+      background-color: #202020;
+      color: #00ff5a;
+      border: 1px solid #00ff5a;
+      border-radius: 4px;
+      padding: 6px 12px;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+
+    .odds button:hover {
+      background-color: #00ff5a;
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <header>⚽ Shqip365 Live Matches</header>
+
+  <div class="match-list" id="matchList">
+    <!-- Ndeshjet do të futen këtu me JavaScript -->
+  </div>
+
+  <script>
+    const matches = [
+      { home: "Manchester City", away: "Chelsea", odds: [1.55, 3.80, 5.20] },
+      { home: "Barcelona", away: "Atletico Madrid", odds: [1.90, 3.30, 4.00] },
+      { home: "Bayern Munich", away: "Borussia Dortmund", odds: [1.70, 3.50, 4.60] },
+      { home: "Liverpool", away: "Arsenal", odds: [2.10, 3.20, 3.70] },
+      { home: "Juventus", away: "Inter Milan", odds: [2.50, 3.00, 3.10] },
+    ];
+
+    const container = document.getElementById("matchList");
+
+    matches.forEach((m) => {
+      const div = document.createElement("div");
+      div.classList.add("match");
+      div.innerHTML = `
+        <div class="teams">
+          <span><strong>${m.home}</strong> vs ${m.away}</span>
+        </div>
+        <div class="odds">
+          <button>${m.odds[0]}</button>
+          <button>${m.odds[1]}</button>
+          <button>${m.odds[2]}</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  </script>
+</body>
+</html>
