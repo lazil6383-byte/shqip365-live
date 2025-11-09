@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shqip365 Live</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="logo">Shqip365</div>
+    <nav>
+      <a href="#">Futboll</a>
+      <a href="#">Slot</a>
+      <a href="#">Menaxhim</a>
+    </nav>
+  </header>
+
+  <main id="matches">
+    <h2>Ndeshjet Live</h2>
+    <div class="match-list" id="matchList">
+      <p>Duke ngarkuar ndeshjet...</p>
+    </div>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const matchList = document.getElementById('matchList');
+
+    async function loadMatches() {
+      try {
+        const res = await fetch('/api/matches');
+        const data = await res.json();
+        matchList.innerHTML = data.map(match => `
+          <div class="match">
+            <h3>${match.home} vs ${match.away}</h3>
+            <p>Koha: ${match.minute}' | Rezultat: ${match.score}</p>
+            <p>Koefficientë: ${match.odds.join(' / ')}</p>
+          </div>
+        `).join('');
+      } catch (err) {
+        matchList.innerHTML = '<p>Gabim gjatë ngarkimit të ndeshjeve.</p>';
+      }
+    }
+
+    loadMatches();
+  </script>
+</body>
+</html>
