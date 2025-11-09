@@ -18,84 +18,91 @@
       text-align: center;
       font-size: 22px;
       font-weight: bold;
-      letter-spacing: 1px;
+      color: #f5c518;
     }
     .tabs {
       display: flex;
       justify-content: center;
-      background-color: #12232e;
+      gap: 10px;
+      margin: 10px 0;
     }
     .tab {
-      padding: 12px 25px;
-      cursor: pointer;
-      background-color: #12232e;
+      background-color: #143642;
+      color: white;
       border: none;
-      color: #fff;
-      font-weight: bold;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 5px;
     }
     .tab.active {
-      background-color: #007bff;
+      background-color: #f5c518;
+      color: #0b1d26;
+      font-weight: bold;
+    }
+    #matches {
+      padding: 15px;
+      display: grid;
+      gap: 15px;
     }
     .match {
-      background-color: #1e3a4c;
-      margin: 10px;
+      background-color: #143642;
+      border-radius: 5px;
       padding: 10px;
-      border-radius: 8px;
+      text-align: center;
     }
-    .match h3 {
-      margin: 0;
+    .teams {
       font-size: 18px;
-      color: #ffcc00;
+      font-weight: bold;
     }
-    .match p {
-      margin: 4px 0;
+    .score {
+      font-size: 22px;
+      margin: 5px 0;
+    }
+    .status {
+      font-size: 14px;
+      color: #f5c518;
     }
   </style>
 </head>
 <body>
-  <header>⚽ Shqip365 - Ndeshjet Live</header>
-
+  <header>Shqip365</header>
   <div class="tabs">
-    <button class="tab active" onclick="loadMatches('live')">LIVE</button>
-    <button class="tab" onclick="loadMatches('upcoming')">TË ARDHSHME</button>
+    <button class="tab active" onclick="loadMatches('live')">Live</button>
+    <button class="tab" onclick="loadMatches('upcoming')">Së shpejti</button>
+    <button class="tab" onclick="loadMatches('finished')">Përfunduar</button>
   </div>
-
-  <div id="matches"></div>
+  <div id="matches">Loading...</div>
 
   <script>
-    async function loadMatches(type) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.querySelector(`button[onclick="loadMatches('${type}')"]`).classList.add('active');
-
-      const container = document.getElementById('matches');
-      container.innerHTML = "<p>Po ngarkohen ndeshjet...</p>";
+    async function loadMatches(type = 'live') {
+      document.getElementById('matches').innerHTML = 'Loading...';
 
       try {
-        const res = await fetch(`/api/${type}`);
+        const res = await fetch(`https://shqip365-live.onrender.com/matches?type=${type}`);
         const data = await res.json();
-        const matches = data.response;
 
-        container.innerHTML = "";
+        if (!data || !data.response || data.response.length === 0) {
+          document.getElementById('matches').innerHTML = 'Nuk ka ndeshje për momentin.';
+          return;
+        }
 
-        matches.forEach(match => {
-          const div = document.createElement("div");
-          div.className = "match";
-          div.innerHTML = `
-            <h3>${match.teams.home.name} 🆚 ${match.teams.away.name}</h3>
-            <p><b>Rezultat:</b> ${match.goals.home ?? 0} - ${match.goals.away ?? 0}</p>
-            <p><b>Minuta:</b> ${match.fixture.status.elapsed ?? 0}'</p>
-            <p><b>Stadium:</b> ${match.fixture.venue?.name ?? "N/A"}</p>
-            <p><b>Liga:</b> ${match.league.name}</p>
-          `;
-          container.appendChild(div);
-        });
+        const matchesHTML = data.response.map(match => `
+          <div class="match">
+            <div class="teams">${match.teams.home.name} - ${match.teams.away.name}</div>
+            <div class="score">${match.goals.home ?? 0} : ${match.goals.away ?? 0}</div>
+            <div class="status">${match.fixture.status.short}</div>
+          </div>
+        `).join('');
 
-      } catch (err) {
-        container.innerHTML = "<p>Gabim gjatë marrjes së të dhënave!</p>";
+        document.getElementById('matches').innerHTML = matchesHTML;
+
+      } catch (error) {
+        console.error('Gabim gjatë marrjes së ndeshjeve:', error);
+        document.getElementById('matches').innerHTML = 'Gabim gjatë marrjes së ndeshjeve.';
       }
     }
 
-    loadMatches("live");
+    loadMatches();
   </script>
 </body>
 </html>
