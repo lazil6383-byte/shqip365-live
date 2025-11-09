@@ -1,32 +1,47 @@
-// Importojmë modulet e nevojshme
+// ===========================
+//  SERVER.JS – Shqip365 LIVE
+// ===========================
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 
-// Krijojmë aplikacionin Express
 const app = express();
 
-// Aktivizojmë CORS dhe vendosim dosjen publike
+// Middleware
 app.use(cors());
 app.use(express.static('public'));
 
-// Këtu vendos API KEY që more nga API-Football
-const API_KEY = 'VENDOS_KETU_API_KEY_TËND';  // 🔹 Shkruaje brenda këtyre thonjëzave ''
-const BASE_URL = '8a0ecad2149f5ccf5da3c61dbaacf6b9';
+// 🔑 API Key nga API-FOOTBALL
+const API_KEY = '8a0ecad2149f5ccf5da3c61dbaacf6b9';  // <--- Ndrysho këtë me çelësin tënd
+const BASE_URL = 'https://v3.football.api-sports.io';
 
-// Krijojmë një endpoint për të marrë ndeshjet live
+// ✅ Endpoint për ndeshje live
 app.get('/api/matches', async (req, res) => {
   try {
     const response = await axios.get(`${BASE_URL}/fixtures?live=all`, {
       headers: { 'x-apisports-key': API_KEY }
     });
     res.json(response.data);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Gabim në marrjen e të dhënave nga API' });
+  } catch (err) {
+    console.error('❌ Gabim:', err.message);
+    res.status(500).json({ error: 'Gabim gjatë marrjes së ndeshjeve live.' });
   }
 });
 
-// Nisim serverin
+// ✅ Endpoint për ndeshje të ardhshme
+app.get('/api/upcoming', async (req, res) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/fixtures?next=20`, {
+      headers: { 'x-apisports-key': API_KEY }
+    });
+    res.json(response.data);
+  } catch (err) {
+    console.error('❌ Gabim:', err.message);
+    res.status(500).json({ error: 'Gabim gjatë marrjes së ndeshjeve të ardhshme.' });
+  }
+});
+
+// Server port
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Serveri po punon në portën ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Serveri u nis në portën ${PORT}`));
