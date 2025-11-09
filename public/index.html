@@ -1,49 +1,134 @@
 <!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shqip365 Live</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shqip365 • Demo Live</title>
+  <style>
+    body{margin:0;background:#0d2617;color:#e7f5ec;font-family:system-ui,-apple-system,Segoe UI,Roboto}
+    header{position:sticky;top:0;background:#0f2f1c;padding:12px 14px;border-bottom:1px solid #143d24}
+    .brand{font-weight:800;color:#ffe34d;font-size:22px}
+    .tabs{display:flex;gap:8px;margin-top:8px;overflow:auto}
+    .tab{background:#113a23;padding:6px 10px;border-radius:16px;white-space:nowrap;font-size:13px;opacity:.9}
+    .tab.active{background:#0bb56b;color:#04140b;font-weight:700}
+    .wrap{padding:14px}
+    .group{margin:14px 0}
+    .lg{font-weight:700;margin:8px 0 6px 4px;color:#9fe3bf}
+    .card{background:#113a23;border:1px solid #174a2b;border-radius:10px;padding:10px;margin:8px 0}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .tm{display:flex;flex-direction:column}
+    .odds{display:flex;gap:6px}
+    .odd{background:#143e27;border:1px solid #1a5534;border-radius:7px;padding:6px 8px;font-weight:700}
+    .badge{background:#0bb56b;color:#062014;border-radius:6px;padding:2px 6px;font-size:12px;margin-left:6px}
+    a{color:inherit;text-decoration:none}
+    small{opacity:.8}
+  </style>
 </head>
 <body>
-  <header class="navbar">
-    <div class="logo">Shqip365</div>
-    <nav>
-      <a href="#">Futboll</a>
-      <a href="#">Slot</a>
-      <a href="#">Menaxhim</a>
-    </nav>
-  </header>
+<header>
+  <div class="brand">Shqip365</div>
+  <div class="tabs">
+    <div class="tab active" data-filter="LIVE">Live</div>
+    <div class="tab" data-filter="UPCOMING">Së shpejti</div>
+    <div class="tab" data-filter="FT">Përfunduar</div>
+  </div>
+</header>
+<div class="wrap" id="app"><div>Loading…</div></div>
 
-  <main id="matches">
-    <h2>Ndeshjet Live</h2>
-    <div class="match-list" id="matchList">
-      <p>Duke ngarkuar ndeshjet...</p>
+<script>
+const $ = (q,el=document)=>el.querySelector(q);
+const app = $("#app");
+let FILTER = "LIVE";
+let fixtures = [];
+
+async function loadFixtures() {
+  const res = await fetch(`/api/fixtures?status=${FILTER}`);
+  fixtures = await res.json();
+  render();
+}
+
+function groupByLeague(rows){
+  const map = {};
+  rows.forEach(r => (map[r.league] = map[r.league]||[]).push(r));
+  return map;
+}
+
+function fmtMinute(m, s){
+  if(s==="UPCOMING") return "KO " + new Date(m.kickOff).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  if(s==="FT") return "FT";
+  return (m.minute+"'"); 
+}
+
+function card(r){
+  return `
+  <a class="card" href="/match.html?id=${r.id}">
+    <div class="row">
+      <div class="tm">
+        <div><b>${r.home}</b></div>
+        <small>${r.league}</small>
+      </div>
+      <div style="text-align:center;min-width:62px">
+        <div><b>${r.score.home} : ${r.score.away}</b></div>
+        <small>${fmtMinute(r, r.status)}</small>
+      </div>
+      <div class="tm" style="align-items:flex-end">
+        <div><b>${r.away}</b></div>
+        <div class="odds">
+          <div class="odd">${r.odds["1X2"]["1"]}</div>
+          <div class="odd">${r.odds["1X2"]["X"]}</div>
+          <div class="odd">${r.odds["1X2"]["2"]}</div>
+        </div>
+      </div>
     </div>
-  </main>
+  </a>`;
+}
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const matchList = document.getElementById('matchList');
+function render(){
+  const groups = groupByLeague(fixtures);
+  app.innerHTML = Object.keys(groups).map(lg=>{
+    return `<div class="group">
+      <div class="lg">${lg} <span class="badge">${groups[lg].length}</span></div>
+      ${groups[lg].map(card).join("")}
+    </div>`;
+  }).join("") || "<div>S'ka ndeshje.</div>";
+}
 
-    async function loadMatches() {
-      try {
-        const res = await fetch('/api/matches');
-        const data = await res.json();
-        matchList.innerHTML = data.map(match => `
-          <div class="match">
-            <h3>${match.home} vs ${match.away}</h3>
-            <p>Koha: ${match.minute}' | Rezultat: ${match.score}</p>
-            <p>Koefficientë: ${match.odds.join(' / ')}</p>
-          </div>
-        `).join('');
-      } catch (err) {
-        matchList.innerHTML = '<p>Gabim gjatë ngarkimit të ndeshjeve.</p>';
-      }
+// tabs
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    FILTER = t.dataset.filter;
+    loadFixtures();
+  });
+});
+
+loadFixtures();
+
+// SSE për rifreskim në kohë reale
+try {
+  const es = new EventSource("/api/stream");
+  es.onmessage = () => {}; // hello
+  es.addEventListener("tick", e=>{
+    const u = JSON.parse(e.data);
+    const i = fixtures.findIndex(x => x.id === u.id);
+    if(i>-1){
+      fixtures[i].minute = u.minute;
+      fixtures[i].score = u.score;
+      fixtures[i].odds = u.odds;
+      fixtures[i].status = "LIVE";
+      render();
     }
-
-    loadMatches();
-  </script>
+  });
+  es.addEventListener("goal", e=>{
+    const u = JSON.parse(e.data);
+    // mund të shtosh efekt vizual këtu
+  });
+  es.addEventListener("fulltime", e=>{
+    // kur mbyllet ndeshja, thjesht rifresko listën
+    if(FILTER==="LIVE") loadFixtures();
+  });
+} catch(err){ console.log(err); }
+</script>
 </body>
 </html>
