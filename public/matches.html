@@ -68,21 +68,21 @@
 <body>
   <header>Shqip365</header>
   <div class="tabs">
-    <div class="tab active" onclick="loadMatches('live')">Live</div>
-    <div class="tab" onclick="loadMatches('upcoming')">Së shpejti</div>
-    <div class="tab" onclick="loadMatches('finished')">Përfunduar</div>
+    <div class="tab active" onclick="loadMatches('live', event)">Live</div>
+    <div class="tab" onclick="loadMatches('upcoming', event)">Së shpejti</div>
+    <div class="tab" onclick="loadMatches('finished', event)">Përfunduar</div>
   </div>
   <div id="matches">Loading...</div>
 
   <script>
-    async function loadMatches(type) {
+    async function loadMatches(type, event) {
       document.getElementById("matches").innerHTML = "Loading...";
       const tabs = document.querySelectorAll(".tab");
       tabs.forEach(tab => tab.classList.remove("active"));
-      event.target.classList.add("active");
+      if (event) event.target.classList.add("active");
 
       try {
-        const res = await fetch(`/matches?type=${type}`);
+        const res = await fetch(`https://shqip365-live.onrender.com/matches?type=${type}`);
         const data = await res.json();
 
         if (!data.response || data.response.length === 0) {
@@ -96,7 +96,7 @@
               <img src="${m.teams.home.logo}" alt="">
               <span>${m.teams.home.name}</span>
             </div>
-            <strong>${m.goals.home} - ${m.goals.away}</strong>
+            <strong>${m.goals.home ?? 0} - ${m.goals.away ?? 0}</strong>
             <div class="team">
               <span>${m.teams.away.name}</span>
               <img src="${m.teams.away.logo}" alt="">
@@ -107,6 +107,7 @@
         document.getElementById("matches").innerHTML = html;
       } catch (err) {
         document.getElementById("matches").innerHTML = "<p>Gabim gjatë marrjes së të dhënave ⚠️</p>";
+        console.error(err);
       }
     }
 
