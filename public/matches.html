@@ -3,98 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shqip365 - Live Ndeshjet</title>
+  <title>Ndeshjet Live | Shqip365</title>
   <style>
     body {
-      background-color: #002b1e;
-      color: #fff;
       font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
+      background-color: #0b1d26;
+      color: white;
+      margin: 0;
+      padding: 0;
     }
-    h1 {
+    header {
+      background-color: #1c2e3b;
+      padding: 15px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
       color: #ffcc00;
     }
-    .buttons {
-      margin-bottom: 20px;
+    .tabs {
+      display: flex;
+      justify-content: center;
+      background-color: #123;
+      padding: 10px;
+      gap: 10px;
     }
-    button {
-      background-color: #004d33;
+    .tab {
+      background-color: #1c2e3b;
       color: white;
-      border: none;
-      padding: 10px 20px;
-      margin: 5px;
-      border-radius: 6px;
+      padding: 8px 16px;
+      border-radius: 20px;
       cursor: pointer;
     }
-    button.active {
-      background-color: #00b36b;
+    .tab.active {
+      background-color: #00b33c;
+    }
+    #matches {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
     }
     .match {
-      background: #004d33;
-      margin: 10px auto;
-      padding: 10px;
+      background-color: #1c2e3b;
       width: 90%;
-      border-radius: 6px;
+      max-width: 600px;
+      padding: 15px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .team {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .team img {
+      width: 30px;
+      height: 30px;
     }
   </style>
 </head>
 <body>
-  <h1>Shqip365</h1>
-  <div class="buttons">
-    <button id="liveBtn" class="active">Live</button>
-    <button id="soonBtn">Së shpejti</button>
-    <button id="doneBtn">Përfunduar</button>
+  <header>Shqip365</header>
+  <div class="tabs">
+    <div class="tab active" onclick="loadMatches('live')">Live</div>
+    <div class="tab" onclick="loadMatches('upcoming')">Së shpejti</div>
+    <div class="tab" onclick="loadMatches('finished')">Përfunduar</div>
   </div>
   <div id="matches">Loading...</div>
 
   <script>
-    async function loadMatches(type = "live") {
+    async function loadMatches(type) {
       document.getElementById("matches").innerHTML = "Loading...";
+      const tabs = document.querySelectorAll(".tab");
+      tabs.forEach(tab => tab.classList.remove("active"));
+      event.target.classList.add("active");
+
       try {
-        const response = await fetch(`/matches?type=${type}`);
-        const data = await response.json();
+        const res = await fetch(`/matches?type=${type}`);
+        const data = await res.json();
 
         if (!data.response || data.response.length === 0) {
-          document.getElementById("matches").innerHTML = "Nuk ka ndeshje për momentin ⚽";
+          document.getElementById("matches").innerHTML = "<p>Nuk ka ndeshje për momentin.</p>";
           return;
         }
 
-        const matchesHtml = data.response.map(m => `
+        const html = data.response.map(m => `
           <div class="match">
-            <h3>${m.teams.home.name} vs ${m.teams.away.name}</h3>
-            <p><strong>Rezultat:</strong> ${m.goals.home ?? 0} - ${m.goals.away ?? 0}</p>
-            <p><small>${m.league.name} | ${m.fixture.status.long}</small></p>
+            <div class="team">
+              <img src="${m.teams.home.logo}" alt="">
+              <span>${m.teams.home.name}</span>
+            </div>
+            <strong>${m.goals.home} - ${m.goals.away}</strong>
+            <div class="team">
+              <span>${m.teams.away.name}</span>
+              <img src="${m.teams.away.logo}" alt="">
+            </div>
           </div>
         `).join("");
 
-        document.getElementById("matches").innerHTML = matchesHtml;
-
+        document.getElementById("matches").innerHTML = html;
       } catch (err) {
-        console.error(err);
-        document.getElementById("matches").innerHTML = "❌ Gabim gjatë ngarkimit të ndeshjeve.";
+        document.getElementById("matches").innerHTML = "<p>Gabim gjatë marrjes së të dhënave ⚠️</p>";
       }
     }
 
-    document.getElementById("liveBtn").addEventListener("click", () => {
-      setActive("liveBtn");
-      loadMatches("live");
-    });
-    document.getElementById("soonBtn").addEventListener("click", () => {
-      setActive("soonBtn");
-      loadMatches("upcoming");
-    });
-    document.getElementById("doneBtn").addEventListener("click", () => {
-      setActive("doneBtn");
-      loadMatches("finished");
-    });
-
-    function setActive(id) {
-      document.querySelectorAll("button").forEach(b => b.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-    }
-
-    loadMatches();
+    loadMatches('live');
   </script>
 </body>
 </html>
