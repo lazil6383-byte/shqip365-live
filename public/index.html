@@ -1,103 +1,39 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Shqip365</title>
-  <style>
-    :root{--bg:#0d0d0f;--panel:#16161a;--text:#f2f2f2;--muted:#a7abb4;--brand:#e01b24;}
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial}
-    header{display:flex;gap:12px;align-items:center;padding:18px 16px;border-bottom:1px solid #222}
-    .logo{font-weight:800;font-size:28px} .logo span{color:var(--brand)}
-    .tabs{display:flex;gap:10px;margin-left:auto}
-    .tab{border:1px solid #333;background:#1b1b20;color:#ddd;border-radius:10px;padding:8px 14px;cursor:pointer}
-    .tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
-    main{max-width:900px;margin:18px auto;padding:0 12px}
-    h2{margin:12px 0 14px;font-size:26px}
-    .notice{background:#1b1b20;border:1px solid #2a2a2f;border-radius:12px;padding:14px 16px;color:#ddd}
-    .match{background:var(--panel);border:1px solid #222;border-radius:14px;padding:14px 16px;margin:10px 0;display:flex;justify-content:space-between;align-items:center}
-    .team{font-weight:700}
-    .comp{color:var(--muted);font-size:13px;margin-top:2px}
-    .time{color:#ddd;font-weight:600}
-    footer{color:var(--muted);text-align:center;margin:24px 0 40px}
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shqip365 • Futboll Live</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <div class="logo">Shqip<span>365</span></div>
-    <div class="tabs">
-      <button class="tab active" data-t="live">LIVE</button>
-      <button class="tab" data-t="soon">Së shpejti</button>
-      <button class="tab" data-t="finished">Përfunduar</button>
-    </div>
+  <header class="topbar">
+    <div class="brand"><span>Shqip</span><b>365</b></div>
+    <nav class="tabs">
+      <button data-tab="live" class="active">LIVE</button>
+      <button data-tab="upcoming">Së Shpejti</button>
+      <button data-tab="finished">Përfunduar</button>
+    </nav>
   </header>
 
   <main>
-    <h2 id="title">Ndeshje LIVE</h2>
-    <div id="list" class="notice">Duke ngarkuar…</div>
-    <footer>© Shqip365 • të dhëna nga football-data.org</footer>
+    <section id="live" class="tab-content active">
+      <h2>Ndeshje Live</h2>
+      <div id="live-list"></div>
+    </section>
+
+    <section id="upcoming" class="tab-content">
+      <h2>Ndeshje së shpejti</h2>
+      <div id="upcoming-list"></div>
+    </section>
+
+    <section id="finished" class="tab-content">
+      <h2>Ndeshje të përfunduara</h2>
+      <div id="finished-list"></div>
+    </section>
   </main>
 
-<script>
-const S = {
-  live:     { url: "/api/live",     title: "Ndeshje LIVE",         empty:"S’ka ndeshje për momentin." },
-  soon:     { url: "/api/soon",     title: "Ndeshje së shpejti",    empty:"S’ka të dhëna për tani."    },
-  finished: { url: "/api/finished", title: "Përfunduar",            empty:"S’ka ndeshje të përfunduara."}
-};
-
-let current = "live", timer = null;
-
-async function load() {
-  const cfg = S[current];
-  document.getElementById("title").textContent = cfg.title;
-  const box = document.getElementById("list");
-  box.className = "notice";
-  box.textContent = "Duke ngarkuar…";
-  try {
-    const r = await fetch(cfg.url);
-    const data = await r.json();
-    if (!r.ok || data.error) throw new Error(data.message || "Gabim");
-    const items = (data.resultSet && data.resultSet.matches) || [];
-    if (!items.length) { box.textContent = cfg.empty; return; }
-    box.className = "";
-    box.innerHTML = items.map(m => {
-      const dt = new Date(m.utcDate);
-      const hm = dt.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
-      const d  = dt.toLocaleDateString([], {weekday:"short", day:"2-digit", month:"short"});
-      const score = (m.status === "FINISHED" || m.status === "IN_PLAY" || m.status==="PAUSED")
-        ? `${m.score.fullTime.home ?? "-"} - ${m.score.fullTime.away ?? "-"}`
-        : "-";
-      return `
-        <div class="match">
-          <div>
-            <div class="team">${m.home}</div>
-            <div class="team">${m.away}</div>
-            <div class="comp">${m.competition}</div>
-          </div>
-          <div class="time" style="text-align:right">
-            <div>${hm}</div>
-            <div style="color:#a7abb4;font-size:13px">${d}</div>
-            <div style="margin-top:6px">${score}</div>
-          </div>
-        </div>
-      `;
-    }).join("");
-  } catch (e) {
-    box.className = "notice";
-    box.textContent = "Gabim gjatë ngarkimit.";
-  }
-}
-
-function setTab(t){
-  current = t;
-  document.querySelectorAll(".tab").forEach(b=> b.classList.toggle("active", b.dataset.t===t));
-  load();
-  if (timer) clearInterval(timer);
-  timer = setInterval(load, 60000); // rifreskim çdo 60s
-}
-
-document.querySelectorAll(".tab").forEach(b => b.onclick = ()=> setTab(b.dataset.t));
-setTab("live");
-</script>
+  <footer>© Shqip365 • të dhëna nga football-data.org</footer>
+  <script src="app.js"></script>
 </body>
 </html>
