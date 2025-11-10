@@ -12,35 +12,31 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// === Fetch ndeshje sipas statusit ===
+// ✅ Rrugë për marrjen e ndeshjeve (me proxy)
 app.get("/api/matches", async (req, res) => {
-  const status = req.query.status || "SCHEDULED"; // default: ndeshje qe do zhvillohen
+  const status = req.query.status || "SCHEDULED";
   const dateFrom = new Date().toISOString().split("T")[0];
-  const dateTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // sot + 2 dite
+  const dateTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
 
   try {
-    const response = await fetch(
-      `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`,
-      {
-        headers: {
-          "X-Auth-Token": API_KEY,
-          "User-Agent": "shqip365-live"
-        }
-      }
-    );
+    // ✅ Proxy për të shmangur bllokimin e API-së
+    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(
+      `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`
+    )}`;
 
-    const text = await response.text();
+    const response = await fetch(url, {
+      headers: { "User-Agent": "shqip365-live" },
+    });
 
-    try {
-      const json = JSON.parse(text);
-      res.json(json);
-    } catch {
-      console.error("⚠️ Përgjigje jo JSON nga API:", text);
-      res.status(500).json({ error: "Gabim gjatë komunikimit me Football-Data" });
-    }
+    const proxyData = await response.json();
+    const data = JSON.parse(proxyData.contents);
+
+    res.json(data);
   } catch (err) {
     console.error("❌ Gabim gjatë marrjes së ndeshjeve:", err);
-    res.status(500).json({ error: "Gabim në server" });
+    res.status(500).json({ error: "Gabim gjatë komunikimit me API-në" });
   }
 });
 
