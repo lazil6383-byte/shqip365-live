@@ -3,68 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shqip365 - Ndeshjet Live</title>
+  <title>Shqip365 - Ndeshjet e Sotme</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>⚽ Shqip365 Live</h1>
+    <h1>Shqip365</h1>
+    <nav>
+      <a href="#" class="active" onclick="loadMatches('LIVE')">Live</a>
+      <a href="#" onclick="loadMatches('SCHEDULED')">Së Shpejti</a>
+      <a href="#" onclick="loadMatches('FINISHED')">Përfunduar</a>
+    </nav>
   </header>
 
-  <main>
-    <section id="matches">
-      <h2>Ndeshjet e Sotme</h2>
-      <div id="matchList">Duke ngarkuar ndeshjet...</div>
-    </section>
+  <main id="matches-container">
+    <p>Duke u ngarkuar ndeshjet ⚽...</p>
   </main>
 
-  <footer>
-    <p>© 2025 Shqip365 • Powered by Football-Data.org</p>
-  </footer>
-
   <script>
-    // 🔑 VENDOS API KEY TËNDE KËTU 👇
-    const API_KEY = "49e8b9175faa444ebe06923fc9b2a81b"; 
+    const API_KEY = "49e8b9175faa444ebe06923fc9b2a81b";
+    const API_URL = "https://api.football-data.org/v4/matches";
+    const container = document.getElementById("matches-container");
 
-    const endpoint = "https://api.football-data.org/v4/matches";
-
-    async function loadMatches() {
+    async function loadMatches(status = "LIVE") {
+      container.innerHTML = `<p>Duke u ngarkuar ndeshjet ⚽...</p>`;
       try {
-        const response = await fetch(endpoint, {
+        const res = await fetch(`${API_URL}?status=${status}`, {
           headers: { "X-Auth-Token": API_KEY }
         });
+        const data = await res.json();
 
-        if (!response.ok) {
-          throw new Error("Gabim gjatë marrjes së ndeshjeve!");
-        }
-
-        const data = await response.json();
-        const matches = data.matches;
-        const matchList = document.getElementById("matchList");
-        matchList.innerHTML = "";
-
-        if (!matches || matches.length === 0) {
-          matchList.innerHTML = "<p>Nuk ka ndeshje për sot ⚽</p>";
+        if (!data.matches || data.matches.length === 0) {
+          container.innerHTML = `<p>S’ka ndeshje aktualisht ⚽</p>`;
           return;
         }
 
-        matches.forEach(match => {
-          const card = document.createElement("div");
-          card.classList.add("match-card");
-          card.innerHTML = `
-            <h3>${match.competition.name}</h3>
-            <p><strong>${match.homeTeam.name}</strong> vs <strong>${match.awayTeam.name}</strong></p>
-            <p>🕒 ${new Date(match.utcDate).toLocaleString("sq-AL")}</p>
-            <p>Status: <span class="status">${match.status}</span></p>
+        container.innerHTML = data.matches.map(match => {
+          const home = match.homeTeam.name;
+          const away = match.awayTeam.name;
+          const score = match.score.fullTime.home !== null
+            ? `${match.score.fullTime.home} - ${match.score.fullTime.away}`
+            : "vs";
+          const competition = match.competition.name;
+          const time = new Date(match.utcDate).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
+
+          return `
+            <div class="match">
+              <h3>${home} <span class="score">${score}</span> ${away}</h3>
+              <p>${competition} • ${time}</p>
+            </div>
           `;
-          matchList.appendChild(card);
-        });
+        }).join("");
       } catch (error) {
-        document.getElementById("matchList").innerHTML = `<p>Gabim: ${error.message}</p>`;
+        container.innerHTML = `<p>Gabim gjatë marrjes së ndeshjeve ❌</p>`;
+        console.error(error);
       }
     }
 
-    loadMatches();
+    loadMatches(); // ngarkon automatikisht ndeshjet live
   </script>
 </body>
 </html>
