@@ -1,117 +1,246 @@
 <!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ndeshjet Live | Shqip365</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ndeshjet | Shqip365</title>
   <style>
+    :root {
+      --bg: #012b1b;
+      --header: #014d2a;
+      --tab: #025c2a;
+      --active: #00c851;
+      --text: #ffffff;
+      --secondary: #9ae49a;
+      --card: #023d23;
+      --border: #007a3d;
+    }
     body {
       font-family: Arial, sans-serif;
-      background-color: #0b1d26;
-      color: white;
+      background-color: var(--bg);
+      color: var(--text);
       margin: 0;
       padding: 0;
     }
     header {
-      background-color: #1c2e3b;
-      padding: 15px;
+      background-color: var(--header);
       text-align: center;
-      font-size: 24px;
+      padding: 15px 0;
+      font-size: 1.7em;
       font-weight: bold;
-      color: #ffcc00;
+      color: #f8e71c;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
     .tabs {
       display: flex;
       justify-content: center;
-      background-color: #123;
-      padding: 10px;
-      gap: 10px;
+      background-color: var(--tab);
+      padding: 8px 0;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 55px;
+      z-index: 9;
     }
     .tab {
-      background-color: #1c2e3b;
-      color: white;
-      padding: 8px 16px;
+      margin: 5px;
+      padding: 6px 16px;
       border-radius: 20px;
       cursor: pointer;
+      background-color: var(--tab);
+      color: var(--text);
+      font-weight: bold;
+      border: 1px solid var(--active);
+      transition: 0.3s;
     }
     .tab.active {
-      background-color: #00b33c;
+      background-color: var(--active);
+      color: #fff;
     }
-    #matches {
-      padding: 20px;
+    .filters {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      background-color: var(--bg);
+      padding: 10px;
+    }
+    .filter-btn {
+      margin: 4px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      background-color: var(--tab);
+      color: var(--text);
+      font-weight: bold;
+      border: 1px solid var(--active);
+    }
+    .filter-btn.active {
+      background-color: var(--active);
+      color: #fff;
+    }
+    .matches {
+      padding: 10px;
     }
     .match {
-      background-color: #1c2e3b;
-      width: 90%;
-      max-width: 600px;
-      padding: 15px;
+      background-color: var(--card);
+      border: 1px solid var(--border);
       border-radius: 10px;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      transition: 0.2s;
+    }
+    .match:hover {
+      transform: scale(1.01);
+    }
+    .teams {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
     }
     .team {
       display: flex;
       align-items: center;
-      gap: 10px;
+      width: 40%;
     }
     .team img {
-      width: 30px;
-      height: 30px;
+      width: 25px;
+      height: 25px;
+      margin-right: 8px;
+    }
+    .score {
+      font-weight: bold;
+      font-size: 1.3em;
+      text-align: center;
+      width: 20%;
+      color: var(--active);
+    }
+    .info {
+      text-align: center;
+      font-size: 0.85em;
+      color: var(--secondary);
+    }
+    .loading {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 1.1em;
+      color: var(--secondary);
     }
   </style>
 </head>
 <body>
   <header>Shqip365</header>
+
   <div class="tabs">
-    <div class="tab active" onclick="loadMatches('live', event)">Live</div>
-    <div class="tab" onclick="loadMatches('upcoming', event)">Së shpejti</div>
-    <div class="tab" onclick="loadMatches('finished', event)">Përfunduar</div>
+    <div class="tab" onclick="navigate('live')">Live</div>
+    <div class="tab active" onclick="navigate('upcoming')">Së Shpejti</div>
+    <div class="tab" onclick="navigate('finished')">Përfunduar</div>
   </div>
-  <div id="matches">Loading...</div>
+
+  <div class="filters" id="leagueFilters"></div>
+
+  <div class="matches" id="matches">
+    <div class="loading">Po ngarkohen ndeshjet...</div>
+  </div>
 
   <script>
-    async function loadMatches(type, event) {
-      document.getElementById("matches").innerHTML = "Loading...";
-      const tabs = document.querySelectorAll(".tab");
-      tabs.forEach(tab => tab.classList.remove("active"));
-      if (event) event.target.classList.add("active");
+    let allMatches = [];
+    let currentType = 'upcoming';
+    let refreshInterval;
+
+    function navigate(type) {
+      window.location.href = type === 'live'
+        ? '/'
+        : type === 'finished'
+        ? '/matches?type=finished'
+        : '/matches?type=upcoming';
+    }
+
+    async function loadMatches(type) {
+      currentType = type;
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelector(`.tab[onclick="navigate('${type}')"]`).classList.add("active");
+
+      const container = document.getElementById("matches");
+      container.innerHTML = `<div class="loading">Po ngarkohen ndeshjet...</div>`;
 
       try {
-        const res = await fetch(`https://shqip365-live.onrender.com/matches?type=${type}`);
+        const res = await fetch(`/matches?type=${type}`);
         const data = await res.json();
 
         if (!data.response || data.response.length === 0) {
-          document.getElementById("matches").innerHTML = "<p>Nuk ka ndeshje për momentin.</p>";
+          container.innerHTML = `<div class="loading">S’ka ndeshje për momentin ⚽</div>`;
           return;
         }
 
-        const html = data.response.map(m => `
-          <div class="match">
-            <div class="team">
-              <img src="${m.teams.home.logo}" alt="">
-              <span>${m.teams.home.name}</span>
-            </div>
-            <strong>${m.goals.home ?? 0} - ${m.goals.away ?? 0}</strong>
-            <div class="team">
-              <span>${m.teams.away.name}</span>
-              <img src="${m.teams.away.logo}" alt="">
-            </div>
-          </div>
-        `).join("");
+        allMatches = data.response;
+        renderLeagues(allMatches);
+        renderMatches(allMatches);
 
-        document.getElementById("matches").innerHTML = html;
-      } catch (err) {
-        document.getElementById("matches").innerHTML = "<p>Gabim gjatë marrjes së të dhënave ⚠️</p>";
-        console.error(err);
+        clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => loadMatches(currentType), 60000);
+      } catch (e) {
+        container.innerHTML = `<div class="loading">Gabim gjatë ngarkimit të ndeshjeve ⚠️</div>`;
       }
     }
 
-    loadMatches('live');
+    function renderLeagues(matches) {
+      const leagues = [...new Set(matches.map(m => m.league.name))];
+      const div = document.getElementById("leagueFilters");
+      div.innerHTML = `<div class="filter-btn active" onclick="filterLeague('all')">Të gjitha</div>`;
+      leagues.forEach(league => {
+        div.innerHTML += `<div class="filter-btn" onclick="filterLeague('${league}')">${league}</div>`;
+      });
+    }
+
+    function renderMatches(matches) {
+      const container = document.getElementById("matches");
+      let html = "";
+      matches.forEach(m => {
+        const f = m.fixture;
+        const t = m.teams;
+        const g = m.goals;
+        const l = m.league;
+        const time = new Date(f.date).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
+        let status = f.status?.short || "";
+
+        if (status === "FT") status = "Përfunduar";
+        else if (status === "NS") status = "Së shpejti";
+        else if (status.includes("'")) status = `${status} min`;
+        else status = "Live";
+
+        html += `
+          <div class="match" data-league="${l.name}">
+            <div class="teams">
+              <div class="team">
+                <img src="${t.home.logo}" alt="">
+                <span>${t.home.name}</span>
+              </div>
+              <div class="score">${g.home ?? 0} - ${g.away ?? 0}</div>
+              <div class="team" style="justify-content: flex-end;">
+                <span>${t.away.name}</span>
+                <img src="${t.away.logo}" alt="">
+              </div>
+            </div>
+            <div class="info">${l.name} • ${time} • ${status}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function filterLeague(league) {
+      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
+      const active = Array.from(document.querySelectorAll(".filter-btn"))
+        .find(b => b.textContent === league || (league === "all" && b.textContent === "Të gjitha"));
+      if (active) active.classList.add("active");
+
+      if (league === "all") renderMatches(allMatches);
+      else renderMatches(allMatches.filter(m => m.league.name === league));
+    }
+
+    loadMatches('upcoming');
   </script>
 </body>
 </html>
