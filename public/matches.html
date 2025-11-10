@@ -1,149 +1,68 @@
 <!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shqip365 - Ndeshjet</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shqip365 - Ndeshjet Live</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
   <header>
-    <h1>Shqip365</h1>
-    <nav>
-      <button class="active" onclick="showCategory('live')">Live</button>
-      <button onclick="showCategory('upcoming')">Së Shpejti</button>
-      <button onclick="showCategory('finished')">Përfunduar</button>
-      <button onclick="showCategory('all')">Të Gjitha</button>
-    </nav>
+    <h1>⚽ Shqip365 Live</h1>
   </header>
 
-  <main id="matches-container">
-    <div class="loading">⚽ Duke ngarkuar ndeshjet...</div>
+  <main>
+    <section id="matches">
+      <h2>Ndeshjet e Sotme</h2>
+      <div id="matchList">Duke ngarkuar ndeshjet...</div>
+    </section>
   </main>
 
   <footer>
-    <p>© 2025 Shqip365 — Kuq e Zi ⚫🔴</p>
+    <p>© 2025 Shqip365 • Powered by Football-Data.org</p>
   </footer>
 
   <script>
-    const container = document.getElementById("matches-container");
+    // 🔑 VENDOS API KEY TËNDE KËTU 👇
+    const API_KEY = "49e8b9175faa444ebe06923fc9b2a81b"; 
 
-    async function loadMatches(type = "live") {
-      container.innerHTML = '<div class="loading">Duke ngarkuar...</div>';
+    const endpoint = "https://api.football-data.org/v4/matches";
 
-      const today = new Date().toISOString().split("T")[0];
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-      let endpoint = "";
-
-      // Cakto URL sipas butonit
-      if (type === "live") {
-        endpoint = "https://v3.football.api-sports.io/fixtures?live=all";
-      } else if (type === "upcoming") {
-        endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
-      } else if (type === "finished") {
-        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
-      } else {
-        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
-      }
-
+    async function loadMatches() {
       try {
         const response = await fetch(endpoint, {
-          method: "GET",
-          headers: {
-            "x-apisports-key": "VENDOS_API_KEY_TËND_KËTU"
-          }
+          headers: { "X-Auth-Token": API_KEY }
         });
+
+        if (!response.ok) {
+          throw new Error("Gabim gjatë marrjes së ndeshjeve!");
+        }
 
         const data = await response.json();
+        const matches = data.matches;
+        const matchList = document.getElementById("matchList");
+        matchList.innerHTML = "";
 
-        if (!data.response || data.response.length === 0) {
-          container.innerHTML = '<div class="no-matches">Nuk ka ndeshje për momentin.</div>';
+        if (!matches || matches.length === 0) {
+          matchList.innerHTML = "<p>Nuk ka ndeshje për sot ⚽</p>";
           return;
         }
 
-        // Filtrim sipas kategorisë
-        let filteredMatches = data.response;
-        if (type === "upcoming") {
-          filteredMatches = data.response.filter(m => m.fixture.status.short === "NS");
-        } else if (type === "finished") {
-          filteredMatches = data.response.filter(m => m.fixture.status.short === "FT");
-        }
-
-        if (filteredMatches.length === 0) {
-          container.innerHTML = '<div class="no-matches">Nuk ka ndeshje në këtë kategori.</div>';
-          return;
-        }
-
-        container.innerHTML = "";
-        let currentDate = "";
-
-        filteredMatches.forEach(match => {
-          const date = new Date(match.fixture.date).toLocaleDateString("sq-AL", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          });
-          const time = new Date(match.fixture.date).toLocaleTimeString("sq-AL", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          const league = match.league.name;
-          const home = match.teams.home;
-          const away = match.teams.away;
-          const scoreHome = match.goals.home ?? "-";
-          const scoreAway = match.goals.away ?? "-";
-          const status = match.fixture.status.short;
-
-          if (date !== currentDate) {
-            currentDate = date;
-            container.innerHTML += `<h2 class="match-date">📅 ${date}</h2>`;
-          }
-
-          container.innerHTML += `
-            <div class="match-card">
-              <div class="match-header">
-                <img src="${match.league.logo}" alt="league" class="league-logo"/>
-                <span class="league-name">${league}</span>
-                <span class="match-time">${time}</span>
-              </div>
-              <div class="teams">
-                <div class="team">
-                  <img src="${home.logo}" alt="${home.name}">
-                  <span>${home.name}</span>
-                </div>
-                <div class="score ${status === "FT" ? "finished" : ""}">
-                  ${scoreHome} - ${scoreAway}
-                </div>
-                <div class="team">
-                  <img src="${away.logo}" alt="${away.name}">
-                  <span>${away.name}</span>
-                </div>
-              </div>
-              <div class="status-line">
-                ${status === "NS" ? "⏳ Nuk ka filluar" : status === "FT" ? "✅ Përfunduar" : "🔴 LIVE"}
-              </div>
-            </div>
+        matches.forEach(match => {
+          const card = document.createElement("div");
+          card.classList.add("match-card");
+          card.innerHTML = `
+            <h3>${match.competition.name}</h3>
+            <p><strong>${match.homeTeam.name}</strong> vs <strong>${match.awayTeam.name}</strong></p>
+            <p>🕒 ${new Date(match.utcDate).toLocaleString("sq-AL")}</p>
+            <p>Status: <span class="status">${match.status}</span></p>
           `;
+          matchList.appendChild(card);
         });
-      } catch (err) {
-        container.innerHTML = '<div class="error">❌ Gabim gjatë ngarkimit të ndeshjeve.</div>';
-        console.error(err);
+      } catch (error) {
+        document.getElementById("matchList").innerHTML = `<p>Gabim: ${error.message}</p>`;
       }
     }
-
-    function showCategory(type) {
-      document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active"));
-      event.target.classList.add("active");
-      loadMatches(type);
-    }
-
-    // Auto-refresh çdo 60 sek për ndeshjet live
-    setInterval(() => {
-      if (document.querySelector("nav button.active").textContent === "Live") {
-        loadMatches("live");
-      }
-    }, 60000);
 
     loadMatches();
   </script>
