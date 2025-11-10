@@ -5,6 +5,11 @@ import compression from "compression";
 import helmet from "helmet";
 import morgan from "morgan";
 import NodeCache from "node-cache";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(helmet());
@@ -111,6 +116,11 @@ app.get("/api/health", (req, res) => {
     backoff: backoffUntil > Date.now(),
     keysTotal: API_KEYS.length
   });
+});
+
+// ✅ Ky është rreshti që të mungonte — lidh index.html me rrënjën e faqes
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.listen(PORT, () =>
