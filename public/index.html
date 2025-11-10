@@ -2,38 +2,27 @@
 <html lang="sq">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Shqip365 • Futboll</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shqip365 • Live Futboll</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span>Shqip</span><b>365</b></div>
+  <header class="top">
+    <div class="brand">Shqip<span>365</span></div>
     <nav class="tabs">
-      <button data-tab="live" class="active">LIVE</button>
-      <button data-tab="upcoming">Së Shpejti</button>
-      <button data-tab="finished">Përfunduar</button>
+      <button class="tab active" data-tab="live">LIVE</button>
+      <button class="tab" data-tab="upcoming">Së Shpejti</button>
+      <button class="tab" data-tab="finished">Përfunduar</button>
     </nav>
   </header>
 
-  <main>
-    <section id="live" class="tab-content active">
-      <h2>Ndeshje Live</h2>
-      <div id="live-list" class="list"></div>
-    </section>
-
-    <section id="upcoming" class="tab-content">
-      <h2>Ndeshje Së Shpejti</h2>
-      <div id="upcoming-list" class="list"></div>
-    </section>
-
-    <section id="finished" class="tab-content">
-      <h2>Ndeshje të Përfunduara</h2>
-      <div id="finished-list" class="list"></div>
-    </section>
+  <main id="content">
+    <div id="list"></div>
+    <div id="loading">Duke ngarkuar…</div>
+    <div id="empty" class="hidden">S’ka ndeshje për momentin.</div>
   </main>
 
-  <footer>© Shqip365 — burim: TheSportsDB (free)</footer>
-  <script src="script.js"></script>
+  <footer class="foot">© Shqip365 • të dhëna nga football-data.org & TheSportsDB</footer>
+  <script src="/script.js"></script>
 </body>
 </html>
