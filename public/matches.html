@@ -31,14 +31,21 @@
 
     async function loadMatches(type = "live") {
       container.innerHTML = '<div class="loading">Duke ngarkuar...</div>';
+
       const today = new Date().toISOString().split("T")[0];
       const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-
       let endpoint = "";
-      if (type === "live") endpoint = "https://v3.football.api-sports.io/fixtures?live=all";
-      else if (type === "upcoming") endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
-      else if (type === "finished") endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}&status=FT`;
-      else endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
+
+      // Cakto URL sipas butonit
+      if (type === "live") {
+        endpoint = "https://v3.football.api-sports.io/fixtures?live=all";
+      } else if (type === "upcoming") {
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
+      } else if (type === "finished") {
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
+      } else {
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
+      }
 
       try {
         const response = await fetch(endpoint, {
@@ -47,6 +54,7 @@
             "x-apisports-key": "VENDOS_API_KEY_TËND_KËTU"
           }
         });
+
         const data = await response.json();
 
         if (!data.response || data.response.length === 0) {
@@ -54,10 +62,23 @@
           return;
         }
 
+        // Filtrim sipas kategorisë
+        let filteredMatches = data.response;
+        if (type === "upcoming") {
+          filteredMatches = data.response.filter(m => m.fixture.status.short === "NS");
+        } else if (type === "finished") {
+          filteredMatches = data.response.filter(m => m.fixture.status.short === "FT");
+        }
+
+        if (filteredMatches.length === 0) {
+          container.innerHTML = '<div class="no-matches">Nuk ka ndeshje në këtë kategori.</div>';
+          return;
+        }
+
         container.innerHTML = "";
         let currentDate = "";
 
-        data.response.forEach(match => {
+        filteredMatches.forEach(match => {
           const date = new Date(match.fixture.date).toLocaleDateString("sq-AL", {
             day: "numeric",
             month: "long",
@@ -72,6 +93,7 @@
           const away = match.teams.away;
           const scoreHome = match.goals.home ?? "-";
           const scoreAway = match.goals.away ?? "-";
+          const status = match.fixture.status.short;
 
           if (date !== currentDate) {
             currentDate = date;
@@ -90,17 +112,23 @@
                   <img src="${home.logo}" alt="${home.name}">
                   <span>${home.name}</span>
                 </div>
-                <div class="score">${scoreHome} - ${scoreAway}</div>
+                <div class="score ${status === "FT" ? "finished" : ""}">
+                  ${scoreHome} - ${scoreAway}
+                </div>
                 <div class="team">
                   <img src="${away.logo}" alt="${away.name}">
                   <span>${away.name}</span>
                 </div>
               </div>
+              <div class="status-line">
+                ${status === "NS" ? "⏳ Nuk ka filluar" : status === "FT" ? "✅ Përfunduar" : "🔴 LIVE"}
+              </div>
             </div>
           `;
         });
       } catch (err) {
-        container.innerHTML = '<div class="error">❌ Nuk mund të ngarkohen ndeshjet.</div>';
+        container.innerHTML = '<div class="error">❌ Gabim gjatë ngarkimit të ndeshjeve.</div>';
+        console.error(err);
       }
     }
 
@@ -110,7 +138,7 @@
       loadMatches(type);
     }
 
-    // auto-refresh çdo 60 sekonda për LIVE
+    // Auto-refresh çdo 60 sek për ndeshjet live
     setInterval(() => {
       if (document.querySelector("nav button.active").textContent === "Live") {
         loadMatches("live");
