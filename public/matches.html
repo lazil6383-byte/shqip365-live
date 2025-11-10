@@ -1,89 +1,54 @@
 <!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shqip365 - Ndeshjet</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <h1>Shqip365</h1>
     <nav>
-      <a href="#" id="live-tab" class="active">Live</a>
-      <a href="#" id="upcoming-tab">Së Shpejti</a>
-      <a href="#" id="finished-tab">Përfunduar</a>
+      <button onclick="loadMatches('LIVE')">Live</button>
+      <button onclick="loadMatches('SCHEDULED')">Së Shpejti</button>
+      <button onclick="loadMatches('FINISHED')">Përfunduar</button>
     </nav>
   </header>
 
   <main id="matches-container">
-    <p class="loading">Duke ngarkuar ndeshjet ⚽...</p>
+    <p>Duke ngarkuar ndeshjet...</p>
   </main>
 
   <script>
-    const container = document.getElementById("matches-container");
-    const liveTab = document.getElementById("live-tab");
-    const upcomingTab = document.getElementById("upcoming-tab");
-    const finishedTab = document.getElementById("finished-tab");
-    const API_URL = "/api/matches"; // ✅ tani përdor API-në tonë lokale (proxy)
+    async function loadMatches(status = 'SCHEDULED') {
+      const container = document.getElementById('matches-container');
+      container.innerHTML = '<p>Duke ngarkuar ndeshjet...</p>';
 
-    // Funksioni për të marrë ndeshjet
-    async function fetchMatches(status = "LIVE") {
-      container.innerHTML = `<p class="loading">Duke ngarkuar ndeshjet ⚽...</p>`;
       try {
-        const res = await fetch(`${API_URL}?status=${status}`);
-        if (!res.ok) throw new Error("Gabim në kërkesë");
-        const data = await res.json();
+        const response = await fetch(`/api/matches?status=${status}`);
+        const data = await response.json();
 
         if (!data.matches || data.matches.length === 0) {
-          container.innerHTML = `<p class="no-matches">S'ka ndeshje aktualisht ⚽</p>`;
+          container.innerHTML = '<p>S’ka ndeshje për momentin ⚽</p>';
           return;
         }
 
-        // Shfaq ndeshjet
         container.innerHTML = data.matches.map(match => `
-          <div class="match-card">
-            <div class="team">
-              <span>${match.homeTeam.name}</span>
-            </div>
-            <div class="score">
-              ${match.score.fullTime.home ?? "-"} : ${match.score.fullTime.away ?? "-"}
-            </div>
-            <div class="team">
-              <span>${match.awayTeam.name}</span>
-            </div>
-            <div class="status">${match.status}</div>
+          <div class="match">
+            <div><strong>${match.competition.name}</strong></div>
+            <div>${match.homeTeam.name} vs ${match.awayTeam.name}</div>
+            <div>${new Date(match.utcDate).toLocaleString('sq-AL')}</div>
+            <div>Status: ${match.status}</div>
           </div>
-        `).join("");
-      } catch (error) {
-        console.error(error);
-        container.innerHTML = `<p class="error">Gabim gjatë marrjes së ndeshjeve ❌</p>`;
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<p>Gabim gjatë marrjes së ndeshjeve ⚠️</p>';
       }
     }
 
-    // Ngarko fillimisht ndeshjet live
-    fetchMatches("LIVE");
-
-    // Butonat për ndërrim
-    liveTab.addEventListener("click", () => {
-      setActive(liveTab);
-      fetchMatches("LIVE");
-    });
-
-    upcomingTab.addEventListener("click", () => {
-      setActive(upcomingTab);
-      fetchMatches("SCHEDULED");
-    });
-
-    finishedTab.addEventListener("click", () => {
-      setActive(finishedTab);
-      fetchMatches("FINISHED");
-    });
-
-    function setActive(tab) {
-      document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
-      tab.classList.add("active");
-    }
+    loadMatches('SCHEDULED');
   </script>
 </body>
 </html>
