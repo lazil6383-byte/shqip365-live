@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shqip365 - Ndeshjet Live</title>
+  <title>Shqip365 - Ndeshjet</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -19,82 +19,80 @@
   </header>
 
   <main id="matches-container">
-    <div class="loading">Duke ngarkuar ndeshjet...</div>
+    <div class="loading">⚽ Duke ngarkuar ndeshjet...</div>
   </main>
 
   <footer>
-    <p>© 2025 Shqip365 - Të gjitha të drejtat e rezervuara.</p>
+    <p>© 2025 Shqip365 — Kuq e Zi ⚫🔴</p>
   </footer>
 
   <script>
-    const container = document.getElementById('matches-container');
+    const container = document.getElementById("matches-container");
 
-    async function loadMatches(type = 'live') {
+    async function loadMatches(type = "live") {
       container.innerHTML = '<div class="loading">Duke ngarkuar...</div>';
-      let endpoint = '';
+      const today = new Date().toISOString().split("T")[0];
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-      const today = new Date().toISOString().split('T')[0];
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
-      if (type === 'live') {
-        endpoint = 'https://v3.football.api-sports.io/fixtures?live=all';
-      } else if (type === 'upcoming') {
-        endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
-      } else if (type === 'finished') {
-        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}&status=FT`;
-      } else {
-        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
-      }
+      let endpoint = "";
+      if (type === "live") endpoint = "https://v3.football.api-sports.io/fixtures?live=all";
+      else if (type === "upcoming") endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
+      else if (type === "finished") endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}&status=FT`;
+      else endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
 
       try {
         const response = await fetch(endpoint, {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'x-apisports-key': 'VENDOS_API_KEY_TËND_KËTU'
+            "x-apisports-key": "VENDOS_API_KEY_TËND_KËTU"
           }
         });
-
         const data = await response.json();
 
         if (!data.response || data.response.length === 0) {
-          container.innerHTML = '<div class="no-matches">Nuk ka ndeshje për këtë kategori.</div>';
+          container.innerHTML = '<div class="no-matches">Nuk ka ndeshje për momentin.</div>';
           return;
         }
 
-        container.innerHTML = '';
+        container.innerHTML = "";
+        let currentDate = "";
 
-        let currentDate = '';
         data.response.forEach(match => {
-          const date = new Date(match.fixture.date).toLocaleDateString('sq-AL', {
-            day: 'numeric', month: 'long', year: 'numeric'
+          const date = new Date(match.fixture.date).toLocaleDateString("sq-AL", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
           });
+          const time = new Date(match.fixture.date).toLocaleTimeString("sq-AL", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const league = match.league.name;
+          const home = match.teams.home;
+          const away = match.teams.away;
+          const scoreHome = match.goals.home ?? "-";
+          const scoreAway = match.goals.away ?? "-";
 
           if (date !== currentDate) {
             currentDate = date;
             container.innerHTML += `<h2 class="match-date">📅 ${date}</h2>`;
           }
 
-          const home = match.teams.home;
-          const away = match.teams.away;
-          const league = match.league.name;
-          const time = new Date(match.fixture.date).toLocaleTimeString('sq-AL', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-
           container.innerHTML += `
             <div class="match-card">
-              <div class="league">${league} • ${time}</div>
+              <div class="match-header">
+                <img src="${match.league.logo}" alt="league" class="league-logo"/>
+                <span class="league-name">${league}</span>
+                <span class="match-time">${time}</span>
+              </div>
               <div class="teams">
                 <div class="team">
-                  <img src="${home.logo}" alt="${home.name}" />
+                  <img src="${home.logo}" alt="${home.name}">
                   <span>${home.name}</span>
                 </div>
-                <div class="score">
-                  ${match.goals.home ?? '-'} : ${match.goals.away ?? '-'}
-                </div>
+                <div class="score">${scoreHome} - ${scoreAway}</div>
                 <div class="team">
-                  <img src="${away.logo}" alt="${away.name}" />
+                  <img src="${away.logo}" alt="${away.name}">
                   <span>${away.name}</span>
                 </div>
               </div>
@@ -102,18 +100,24 @@
           `;
         });
       } catch (err) {
-        container.innerHTML = `<div class="error">❌ Gabim gjatë ngarkimit të ndeshjeve.</div>`;
-        console.error(err);
+        container.innerHTML = '<div class="error">❌ Nuk mund të ngarkohen ndeshjet.</div>';
       }
     }
 
     function showCategory(type) {
-      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+      document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active"));
+      event.target.classList.add("active");
       loadMatches(type);
     }
 
-    loadMatches(); // default: live
+    // auto-refresh çdo 60 sekonda për LIVE
+    setInterval(() => {
+      if (document.querySelector("nav button.active").textContent === "Live") {
+        loadMatches("live");
+      }
+    }, 60000);
+
+    loadMatches();
   </script>
 </body>
 </html>
