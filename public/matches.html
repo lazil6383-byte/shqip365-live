@@ -3,139 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ndeshjet | Shqip365</title>
-  <style>
-    :root {
-      --bg: #012b1b;
-      --header: #014d2a;
-      --tab: #025c2a;
-      --active: #00c851;
-      --text: #ffffff;
-      --secondary: #9ae49a;
-      --card: #023d23;
-      --border: #007a3d;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background-color: var(--header);
-      text-align: center;
-      padding: 15px 0;
-      font-size: 1.7em;
-      font-weight: bold;
-      color: #f8e71c;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .tabs {
-      display: flex;
-      justify-content: center;
-      background-color: var(--tab);
-      padding: 8px 0;
-      flex-wrap: wrap;
-      position: sticky;
-      top: 55px;
-      z-index: 9;
-    }
-    .tab {
-      margin: 5px;
-      padding: 6px 16px;
-      border-radius: 20px;
-      cursor: pointer;
-      background-color: var(--tab);
-      color: var(--text);
-      font-weight: bold;
-      border: 1px solid var(--active);
-      transition: 0.3s;
-    }
-    .tab.active {
-      background-color: var(--active);
-      color: #fff;
-    }
-    .filters {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      background-color: var(--bg);
-      padding: 10px;
-    }
-    .filter-btn {
-      margin: 4px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      cursor: pointer;
-      background-color: var(--tab);
-      color: var(--text);
-      font-weight: bold;
-      border: 1px solid var(--active);
-    }
-    .filter-btn.active {
-      background-color: var(--active);
-      color: #fff;
-    }
-    .matches {
-      padding: 10px;
-    }
-    .match {
-      background-color: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 15px;
-      margin-bottom: 10px;
-      transition: 0.2s;
-    }
-    .match:hover {
-      transform: scale(1.01);
-    }
-    .teams {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }
-    .team {
-      display: flex;
-      align-items: center;
-      width: 40%;
-    }
-    .team img {
-      width: 25px;
-      height: 25px;
-      margin-right: 8px;
-    }
-    .score {
-      font-weight: bold;
-      font-size: 1.3em;
-      text-align: center;
-      width: 20%;
-      color: var(--active);
-    }
-    .info {
-      text-align: center;
-      font-size: 0.85em;
-      color: var(--secondary);
-    }
-    .loading {
-      text-align: center;
-      margin-top: 40px;
-      font-size: 1.1em;
-      color: var(--secondary);
-    }
-  </style>
+  <title>Shqip365 - Ndeshjet</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>Shqip365</header>
 
   <div class="tabs">
     <div class="tab" onclick="navigate('live')">Live</div>
-    <div class="tab active" onclick="navigate('upcoming')">Së Shpejti</div>
-    <div class="tab" onclick="navigate('finished')">Përfunduar</div>
+    <div class="tab active" onclick="loadMatches('upcoming')">Së Shpejti</div>
+    <div class="tab" onclick="loadMatches('finished')">Përfunduar</div>
   </div>
 
   <div class="filters" id="leagueFilters"></div>
@@ -150,33 +27,37 @@
     let refreshInterval;
 
     function navigate(type) {
-      window.location.href = type === 'live'
-        ? '/'
-        : type === 'finished'
-        ? '/matches?type=finished'
-        : '/matches?type=upcoming';
+      window.location.href = type === 'live' ? '/' : `/matches?type=${type}`;
     }
 
     async function loadMatches(type) {
       currentType = type;
       document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      document.querySelector(`.tab[onclick="navigate('${type}')"]`).classList.add("active");
+      document.querySelector(`.tab[onclick="loadMatches('${type}')"]`).classList.add("active");
 
       const container = document.getElementById("matches");
       container.innerHTML = `<div class="loading">Po ngarkohen ndeshjet...</div>`;
 
       try {
-        const res = await fetch(`/matches?type=${type}`);
-        const data = await res.json();
+        let res = await fetch(`/matches?type=${type}`);
+        let data = await res.json();
+
+        if ((!data.response || data.response.length === 0) && type === 'upcoming') {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const formattedDate = tomorrow.toISOString().split('T')[0];
+          res = await fetch(`/matches?type=upcoming&date=${formattedDate}`);
+          data = await res.json();
+        }
 
         if (!data.response || data.response.length === 0) {
-          container.innerHTML = `<div class="loading">S’ka ndeshje për momentin ⚽</div>`;
+          container.innerHTML = `<div class="loading">Nuk ka ndeshje të planifikuara ⚽</div>`;
           return;
         }
 
         allMatches = data.response;
         renderLeagues(allMatches);
-        renderMatches(allMatches);
+        renderMatchesGrouped(allMatches);
 
         clearInterval(refreshInterval);
         refreshInterval = setInterval(() => loadMatches(currentType), 60000);
@@ -194,40 +75,44 @@
       });
     }
 
-    function renderMatches(matches) {
+    function renderMatchesGrouped(matches) {
       const container = document.getElementById("matches");
-      let html = "";
-      matches.forEach(m => {
-        const f = m.fixture;
-        const t = m.teams;
-        const g = m.goals;
-        const l = m.league;
-        const time = new Date(f.date).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
-        let status = f.status?.short || "";
+      container.innerHTML = "";
 
-        if (status === "FT") status = "Përfunduar";
-        else if (status === "NS") status = "Së shpejti";
-        else if (status.includes("'")) status = `${status} min`;
-        else status = "Live";
+      const grouped = matches.reduce((acc, match) => {
+        const date = new Date(match.fixture.date).toLocaleDateString("sq-AL", { day: "2-digit", month: "long", year: "numeric" });
+        if (!acc[date]) acc[date] = [];
+        acc[date].push(match);
+        return acc;
+      }, {});
 
-        html += `
-          <div class="match" data-league="${l.name}">
-            <div class="teams">
-              <div class="team">
-                <img src="${t.home.logo}" alt="">
-                <span>${t.home.name}</span>
+      for (const [date, games] of Object.entries(grouped)) {
+        container.innerHTML += `<h3 class="match-date">📅 ${date}</h3>`;
+        games.forEach(m => {
+          const f = m.fixture;
+          const t = m.teams;
+          const g = m.goals;
+          const l = m.league;
+
+          const time = new Date(f.date).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
+          const status = f.status?.short === "FT" ? "Përfunduar" :
+                        f.status?.short === "NS" ? "Së shpejti" :
+                        f.status?.short?.includes("'") ? `${f.status.short} min` : "Live";
+
+          container.innerHTML += `
+            <div class="match" data-league="${l.name}">
+              <div class="teams">
+                <div class="team"><img src="${t.home.logo}" alt=""><span>${t.home.name}</span></div>
+                <div class="score">${g.home ?? 0} - ${g.away ?? 0}</div>
+                <div class="team" style="justify-content: flex-end;">
+                  <span>${t.away.name}</span><img src="${t.away.logo}" alt="">
+                </div>
               </div>
-              <div class="score">${g.home ?? 0} - ${g.away ?? 0}</div>
-              <div class="team" style="justify-content: flex-end;">
-                <span>${t.away.name}</span>
-                <img src="${t.away.logo}" alt="">
-              </div>
+              <div class="info">${l.name} • ${time} • ${status}</div>
             </div>
-            <div class="info">${l.name} • ${time} • ${status}</div>
-          </div>
-        `;
-      });
-      container.innerHTML = html;
+          `;
+        });
+      }
     }
 
     function filterLeague(league) {
@@ -236,8 +121,8 @@
         .find(b => b.textContent === league || (league === "all" && b.textContent === "Të gjitha"));
       if (active) active.classList.add("active");
 
-      if (league === "all") renderMatches(allMatches);
-      else renderMatches(allMatches.filter(m => m.league.name === league));
+      const filtered = league === "all" ? allMatches : allMatches.filter(m => m.league.name === league);
+      renderMatchesGrouped(filtered);
     }
 
     loadMatches('upcoming');
