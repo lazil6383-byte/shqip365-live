@@ -12,16 +12,15 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ Endpoint që merr ndeshjet përmes proxy të sigurt
 app.get("/api/matches", async (req, res) => {
-  const status = req.query.status || "SCHEDULED";
+  const status = req.query.status || "";
   const dateFrom = new Date().toISOString().split("T")[0];
   const dateTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
 
   try {
-    const apiUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`;
+    const apiUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
     const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`;
 
     const response = await fetch(proxyUrl, {
@@ -32,6 +31,13 @@ app.get("/api/matches", async (req, res) => {
     });
 
     const data = await response.json();
+
+    // Sigurohu që API kthen të dhëna të vlefshme
+    if (!data.matches) {
+      console.warn("⚠️ Asnjë ndeshje nuk u kthye nga API.");
+      return res.json({ matches: [] });
+    }
+
     res.json(data);
   } catch (err) {
     console.error("❌ Gabim gjatë marrjes së ndeshjeve:", err);
