@@ -1,71 +1,96 @@
-// Tabs
-document.querySelectorAll(".tabs button").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelectorAll(".tab-content").forEach(s=>s.classList.remove("active"));
-    document.getElementById(btn.dataset.tab).classList.add("active");
+const list = document.getElementById("list");
+const loading = document.getElementById("loading");
+const empty = document.getElementById("empty");
+const tabs = document.querySelectorAll(".tab");
+
+let currentTab = "live";
+let lastScores = new Map(); // për efekt GOL
+
+tabs.forEach(b => b.addEventListener("click", () => {
+  tabs.forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  currentTab = b.dataset.tab;
+  load();
+}));
+
+function fmtTime(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+
+function badgeFor(status) {
+  const s = (status || "").toUpperCase();
+  if (s === "LIVE" || s === "IN_PLAY" || s === "PAUSED") return `<span class="badge live">LIVE</span>`;
+  if (s === "FINISHED" || s === "FT") return `<span class="badge finished">Përfunduar</span>`;
+  return `<span class="badge upcoming">UPCOMING</span>`;
+}
+
+function renderGroups(groups) {
+  list.innerHTML = "";
+  if (!groups || !groups.length) { empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+
+  groups.forEach(g => {
+    const wrap = document.createElement("section");
+    wrap.className = "league";
+    wrap.innerHTML = `<h3>${g.league}</h3>`;
+    g.matches.forEach(m => {
+      const key = `${m.home}__${m.away}`;
+      const prev = lastScores.get(key) || "x";
+      const cur = `${m.score?.fullTime?.home ?? "-"}:${m.score?.fullTime?.away ?? "-"}`;
+      const goalFx = prev !== "x" && prev !== cur ? " goal" : "";
+      lastScores.set(key, cur);
+
+      const el = document.createElement("div");
+      el.className = "card" + (goalFx ? " goal" : "");
+      el.innerHTML = `
+        <div class="row">
+          <div class="teams">
+            <div>${m.home}</div>
+            <div>${m.away}</div>
+          </div>
+          <div class="score">${m.score?.fullTime?.home ?? "-"} : ${m.score?.fullTime?.away ?? "-"}</div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div class="kick">${fmtTime(m.utcDate)}</div>
+          <div>${badgeFor(m.status)}</div>
+        </div>
+      `;
+      wrap.appendChild(el);
+    });
+    list.appendChild(wrap);
   });
-});
-
-function fmtTime(dateStr, timeStr){
-  const t = timeStr && timeStr !== "00:00:00" ? `${dateStr}T${timeStr}Z` : `${dateStr}T00:00:00Z`;
-  const d = new Date(t);
-  const dd = d.toLocaleDateString([], { day:"2-digit", month:"2-digit" });
-  const hh = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return `${dd} • ${hh}`;
 }
 
-function card(match, type){
-  const statusClass = type === "live" ? "live" : (type==="finished"?"finished":"upcoming");
-  const score = (match.homeScore ?? "-") + " : " + (match.awayScore ?? "-");
-  const when = match.date ? fmtTime(match.date, match.time) : "";
-
-  return `
-    <div class="match">
-      <div class="left">
-        <div class="league">${match.league || match.country || ""}</div>
-        <div class="teams">${match.homeTeam} vs ${match.awayTeam}</div>
-        <div class="meta">${when}</div>
-      </div>
-      <div class="right">
-        <div class="badge ${statusClass}">${type.toUpperCase()}</div>
-        <div class="score">${score}</div>
-      </div>
-    </div>
-  `;
+async function fetchJSON(url) {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error("net");
+  return r.json();
 }
 
-async function load(endpoint, container, type){
-  container.innerHTML = "<div class='meta'>Po ngarkohet...</div>";
-  try{
-    const r = await fetch(endpoint, { cache: "no-store" });
-    const data = await r.json();
-    const arr = Array.isArray(data?.matches) ? data.matches : [];
-    if (!arr.length){
-      container.innerHTML = "<div class='meta'>S'ka ndeshje për momentin.</div>";
-      return;
-    }
-    container.innerHTML = arr.map(m => card(m, type)).join("");
-  }catch(e){
-    container.innerHTML = "<div class='meta'>Gabim gjatë ngarkimit.</div>";
+async function load() {
+  loading.classList.remove("hidden");
+  list.innerHTML = "";
+  empty.classList.add("hidden");
+
+  try {
+    const data = await fetchJSON(`/api/${currentTab}`);
+    renderGroups(data.groups || []);
+  } catch {
+    empty.textContent = "Gabim gjatë ngarkimit.";
+    empty.classList.remove("hidden");
+  } finally {
+    loading.classList.add("hidden");
   }
 }
 
-const liveBox = document.getElementById("live-list");
-const upcBox  = document.getElementById("upcoming-list");
-const finBox  = document.getElementById("finished-list");
+// Auto-refresh: LIVE çdo 20s, të tjerat çdo 90s
+setInterval(() => {
+  if (currentTab === "live") load();
+}, 20000);
+setInterval(() => {
+  if (currentTab !== "live") load();
+}, 90000);
 
-async function refreshAll(){
-  await Promise.all([
-    load("/api/live", liveBox, "live"),
-    load("/api/upcoming", upcBox, "upcoming"),
-    load("/api/finished", finBox, "finished")
-  ]);
-}
-
-refreshAll();
-// Rifresko LIVE çdo 20s; të tjerat çdo 2 min
-setInterval(()=> load("/api/live", liveBox, "live"), 20000);
-setInterval(()=> load("/api/upcoming", upcBox, "upcoming"), 120000);
-setInterval(()=> load("/api/finished", finBox, "finished"), 180000);
+load();
