@@ -12,117 +12,160 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Siguri & performance
 app.use(helmet());
 app.use(cors());
 app.use(compression());
 app.use(morgan("tiny"));
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
-// Porti për Render
-const PORT = process.env.PORT || 10000;
+// Cache në memorie
+const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 });
 
-// Dy API KEY që më dhe
-const API_KEYS = [
-  "c639ca3a6c0a4e2cd8ee3862daabf67f",
-  "ce4ba1190d3445d0b7cc0ac80f092ef6"
+// TheSportsDB (pa key). Live + fixtures për liga kryesore.
+// Live (gjithë futbollin): /livescore.php?l=Soccer
+const TSD_BASE = "https://www.thesportsdb.com/api/v1/json/3";
+
+// ID të ligave kryesore (TheSportsDB)
+const LEAGUES = [
+  // Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Eredivisie, Primeira Liga, Süper Lig
+  "4328", "4335", "4332", "4331", "4334", "4337", "4344", "4387"
 ];
 
-const BASE_URL = "https://api.football-data.org/v4";
-const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 });
-let keyIndex = 0;
-let backoffUntil = 0;
-
-// Funksion ndihmës për rotacionin e çelësave
-function nextKey() {
-  keyIndex = (keyIndex + 1) % API_KEYS.length;
-  return API_KEYS[keyIndex];
-}
-
-// Bllokon thirrjet gjatë backoff
-function inBackoff() {
-  return Date.now() < backoffUntil;
-}
-
-// Fetch me cache + fallback API key
-async function fetchData(path, ttl = 60) {
-  const cacheKey = path;
-  const cached = cache.get(cacheKey);
+// Helper fetch me timeout + cache
+async function fetchJSON(url, ttlSeconds = 60) {
+  const cached = cache.get(url);
   if (cached) return cached;
 
-  if (inBackoff()) return cache.get(cacheKey) || [];
-
-  for (let i = 0; i < API_KEYS.length; i++) {
-    const key = API_KEYS[keyIndex];
-    try {
-      const res = await axios.get(`${BASE_URL}${path}`, {
-        headers: { "X-Auth-Token": key },
-        timeout: 10000
-      });
-      cache.set(cacheKey, res.data, ttl);
-      return res.data;
-    } catch (e) {
-      const code = e?.response?.status;
-      if (code === 429 || (code >= 500 && code < 600)) {
-        backoffUntil = Date.now() + 30000;
-        nextKey();
-        continue;
-      }
-      if (code === 401 || code === 403) {
-        nextKey();
-        continue;
-      }
-      throw e;
-    }
+  try {
+    const res = await axios.get(url, { timeout: 12000 });
+    const data = res.data || {};
+    cache.set(url, data, ttlSeconds);
+    return data;
+  } catch (e) {
+    // Kthe çfarë kemi në cache nëse ekziston
+    const fallback = cache.get(url);
+    if (fallback) return fallback;
+    return {};
   }
-
-  return cache.get(cacheKey) || [];
 }
 
-// Endpoint për ndeshje live
+// Normalizim i një eventi nga TheSportsDB
+function normalizeEvent(ev) {
+  return {
+    id: ev.idEvent || ev.id || "",
+    league: ev.strLeague || "",
+    country: ev.strCountry || ev.strLeagueAlternate || "",
+    date: ev.dateEvent || ev.dateEventLocal || "",
+    time: ev.strTime || ev.strTimeLocal || "",
+    timestamp: ev.strTimestamp || null,
+    homeTeam: ev.strHomeTeam || "",
+    awayTeam: ev.strAwayTeam || "",
+    status: ev.strStatus || "", // TheSportsDB shpesh e lë bosh; për live përdorim livescore endpoint
+    homeScore: ev.intHomeScore ?? null,
+    awayScore: ev.intAwayScore ?? null
+  };
+}
+
+// === ENDPOINT: LIVE ===
+// Përpiqemi: /livescore.php?l=Soccer
 app.get("/api/live", async (req, res) => {
   try {
-    const data = await fetchData("/matches?status=LIVE", 20);
-    res.json(data);
+    const url = `${TSD_BASE}/livescore.php?l=Soccer`;
+    const data = await fetchJSON(url, 20);
+
+    // TheSportsDB kthen { events: [...] } ose {events:null}
+    const events = Array.isArray(data?.events) ? data.events : [];
+    const normalized = events.map(ev => {
+      const n = normalizeEvent(ev);
+      // Vendos status "LIVE" nëse nuk jepet
+      if (!n.status) n.status = "LIVE";
+      return n;
+    });
+
+    res.json({ matches: normalized });
   } catch {
-    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve live." });
+    res.json({ matches: [] });
   }
 });
 
-// Ndeshje të ardhshme
+// === ENDPOINT: SË SHPEJTI ===
+// Kombinojmë ndeshjet e rradhës për disa liga me eventsnextleague.php
 app.get("/api/upcoming", async (req, res) => {
   try {
-    const data = await fetchData("/matches?status=SCHEDULED", 120);
-    res.json(data);
+    const perLeague = await Promise.all(
+      LEAGUES.map(id =>
+        fetchJSON(`${TSD_BASE}/eventsnextleague.php?id=${id}`, 300)
+      )
+    );
+
+    const all = [];
+    perLeague.forEach(resp => {
+      const arr = Array.isArray(resp?.events) ? resp.events : [];
+      arr.forEach(ev => all.push(normalizeEvent(ev)));
+    });
+
+    // Rendit sipas date/time
+    all.sort((a, b) => {
+      const da = `${a.date} ${a.time}`;
+      const db = `${b.date} ${b.time}`;
+      return da.localeCompare(db);
+    });
+
+    res.json({ matches: all });
   } catch {
-    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve së ardhshme." });
+    res.json({ matches: [] });
   }
 });
 
-// Ndeshje të përfunduara
+// === ENDPOINT: TË PËRFUNDUARA ===
+// eventsround.php / eventspastleague.php? — përdorim eventspastleague për secilën ligë
 app.get("/api/finished", async (req, res) => {
   try {
-    const data = await fetchData("/matches?status=FINISHED", 300);
-    res.json(data);
+    const perLeague = await Promise.all(
+      LEAGUES.map(id =>
+        fetchJSON(`${TSD_BASE}/eventspastleague.php?id=${id}`, 600)
+      )
+    );
+
+    const all = [];
+    perLeague.forEach(resp => {
+      const arr = Array.isArray(resp?.events) ? resp.events : [];
+      arr.forEach(ev => all.push(normalizeEvent(ev)));
+    });
+
+    // Filtro vetëm ato që kanë rezultat
+    const withScore = all.filter(m => m.homeScore !== null && m.awayScore !== null);
+
+    // Rendit nga më e fundit
+    withScore.sort((a, b) => {
+      const da = `${a.date} ${a.time}`;
+      const db = `${b.date} ${b.time}`;
+      return db.localeCompare(da);
+    });
+
+    res.json({ matches: withScore });
   } catch {
-    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve të përfunduara." });
+    res.json({ matches: [] });
   }
 });
 
-// Shëndeti i serverit
+// Health check
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    keyInUse: keyIndex + 1,
-    backoff: backoffUntil > Date.now(),
-    keysTotal: API_KEYS.length
+    provider: "TheSportsDB (free)",
+    cacheKeys: cache.keys().length
   });
 });
 
-// ✅ Ky është rreshti që të mungonte — lidh index.html me rrënjën e faqes
+// Rrënja: shërbe index.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.listen(PORT, () =>
-  console.log(`✅ Shqip365 Live (Professional) po funksionon në portin ${PORT}`)
+  console.log(`✅ Shqip365 po punon në portin ${PORT}`)
 );
