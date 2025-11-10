@@ -14,34 +14,39 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/matches", async (req, res) => {
   const status = req.query.status || "";
-  const dateFrom = new Date().toISOString().split("T")[0];
-  const dateTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+
+  // Kërko ndeshjet nga 5 ditë më parë deri në 5 ditë pas sot
+  const dateFrom = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const dateTo = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   try {
     const apiUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`;
-
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(apiUrl, {
       headers: {
         "X-Auth-Token": API_KEY,
         "User-Agent": "shqip365-live"
       }
     });
 
+    if (!response.ok) {
+      console.error("⚠️ API error:", response.status, response.statusText);
+      return res.status(500).json({ error: "Gabim gjatë komunikimit me API-në" });
+    }
+
     const data = await response.json();
 
-    // Sigurohu që API kthen të dhëna të vlefshme
     if (!data.matches) {
       console.warn("⚠️ Asnjë ndeshje nuk u kthye nga API.");
       return res.json({ matches: [] });
     }
 
-    res.json(data);
+    // Filtrim sipas statusit nëse kërkohet (LIVE, FINISHED, SCHEDULED)
+    const filtered = status ? data.matches.filter(m => m.status === status) : data.matches;
+
+    res.json({ matches: filtered });
   } catch (err) {
     console.error("❌ Gabim gjatë marrjes së ndeshjeve:", err);
-    res.status(500).json({ error: "Gabim gjatë komunikimit me API-në" });
+    res.status(500).json({ error: "Gabim në server" });
   }
 });
 
