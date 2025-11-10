@@ -1,46 +1,48 @@
-/* ===========================
-   STILIZIMI KRYESOR - SHQIP365
-   =========================== */
+/* ================================
+   DIZAJNI ZYRTAR I SHQIP365 ⚫🔴
+   ================================ */
 
 body {
   background-color: #000;
-  color: white;
+  color: #fff;
   font-family: 'Poppins', Arial, sans-serif;
   margin: 0;
   padding: 0;
 }
 
+/* HEADER */
 header {
-  background: linear-gradient(90deg, #000 0%, #700000 100%);
+  background: linear-gradient(90deg, #000000 0%, #8b0000 100%);
   padding: 20px 10px;
   text-align: center;
-  color: #fff;
-  border-bottom: 2px solid red;
+  border-bottom: 2px solid #d10000;
 }
 
 header h1 {
-  color: #ff0000;
+  color: #ff2e2e;
   font-size: 28px;
+  font-weight: 700;
   margin: 0;
 }
 
+/* NAVIGATION BUTTONS */
 nav {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   margin-top: 15px;
 }
 
 nav button {
-  background-color: #222;
+  background-color: #111;
   border: 1px solid #444;
   color: white;
   padding: 10px 18px;
-  border-radius: 30px;
+  border-radius: 25px;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: 0.3s;
 }
 
 nav button.active,
@@ -49,38 +51,62 @@ nav button:hover {
   border-color: #ff3333;
 }
 
+/* MAIN CONTENT */
 main {
   padding: 20px;
 }
 
 .match-date {
-  color: #ff3333;
+  color: #ff2e2e;
   font-weight: bold;
   font-size: 16px;
-  border-bottom: 1px solid #333;
   margin: 25px 0 10px;
+  border-bottom: 1px solid #222;
 }
 
+/* MATCH CARDS */
 .match-card {
   background-color: #111;
   border: 1px solid #222;
-  border-radius: 10px;
-  padding: 15px;
+  border-radius: 12px;
+  padding: 12px;
   margin-bottom: 12px;
-  transition: all 0.3s;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.15);
+  transition: 0.3s;
 }
 
 .match-card:hover {
   transform: scale(1.02);
-  border-color: red;
+  border-color: #d10000;
 }
 
-.league {
+/* HEADER I NDESHJES */
+.match-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.league-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.league-name {
+  flex: 1;
+  margin-left: 8px;
   font-size: 13px;
-  color: #aaa;
-  margin-bottom: 6px;
+  color: #bbb;
 }
 
+.match-time {
+  color: #999;
+  font-size: 12px;
+}
+
+/* TEAMS */
 .teams {
   display: flex;
   justify-content: space-between;
@@ -91,41 +117,45 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
 }
 
 .team img {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background-color: #222;
+  background: #000;
 }
 
 .team span {
   font-size: 15px;
   color: #fff;
+  font-weight: 500;
 }
 
 .score {
   font-weight: bold;
   font-size: 20px;
   color: #fff;
+  min-width: 50px;
   text-align: center;
-  min-width: 60px;
 }
 
+/* STATUS MESSAGES */
 .loading,
 .no-matches,
 .error {
   text-align: center;
-  color: #aaa;
-  margin-top: 50px;
+  color: #888;
+  margin-top: 40px;
 }
 
+/* FOOTER */
 footer {
   text-align: center;
   padding: 15px;
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: #777;
   border-top: 1px solid #222;
   background-color: #0a0a0a;
 }
