@@ -141,6 +141,18 @@ main {
   text-align: center;
 }
 
+.score.finished {
+  color: #00ff88;
+}
+
+/* STATUS LINE */
+.status-line {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 6px;
+  color: #bbb;
+}
+
 /* STATUS MESSAGES */
 .loading,
 .no-matches,
