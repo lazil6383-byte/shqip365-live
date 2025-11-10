@@ -1,72 +1,182 @@
+/* =========================
+   STILI PROFESIONAL KUQ E ZI - SHQIP365
+   ========================= */
+
 body {
   margin: 0;
-  background-color: #111;
-  font-family: Arial, sans-serif;
-  color: #f2f2f2;
+  font-family: "Poppins", "Arial", sans-serif;
+  background-color: #0a0a0a;
+  color: #f1f1f1;
 }
 
-.navbar {
-  background-color: #004d26;
-  padding: 15px 20px;
+header {
+  background: linear-gradient(90deg, #000, #e60000);
+  color: #fff;
+  text-align: center;
+  padding: 16px 0;
+  font-size: 1.8em;
+  font-weight: 800;
+  letter-spacing: 1px;
+  border-bottom: 2px solid #ff1a1a;
+  text-transform: uppercase;
+}
+
+.tabs {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: space-around;
+  background: #111;
+  padding: 10px 0;
+  border-bottom: 1px solid #222;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  color: #aaa;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.tab.active {
+  color: #ff1a1a;
+  border-bottom: 3px solid #ff1a1a;
+}
+
+.tab:hover {
+  color: #ff3333;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 8px;
+  background: #121212;
+  border-bottom: 1px solid #1c1c1c;
+}
+
+.filter-btn {
+  background: #1c1c1c;
+  color: #ddd;
+  border-radius: 20px;
+  padding: 6px 14px;
+  margin: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+  border: 1px solid #292929;
+  transition: 0.3s;
+}
+
+.filter-btn:hover {
+  background: #2a2a2a;
   color: #fff;
 }
 
-.navbar .logo {
-  font-size: 1.5em;
+.filter-btn.active {
+  background: #e60000;
+  color: #fff;
+  border: 1px solid #ff3333;
+}
+
+.match-date {
+  background: #111;
+  color: #ff1a1a;
   font-weight: bold;
-  color: #ffcc00;
+  font-size: 0.95em;
+  padding: 8px 14px;
+  margin: 18px 0 10px;
+  border-left: 4px solid #ff1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.navbar nav a {
-  color: #fff;
-  text-decoration: none;
-  margin: 0 10px;
-  font-weight: 500;
-}
-
-.navbar nav a:hover {
-  color: #ffcc00;
-}
-
-main {
-  padding: 20px;
-}
-
-.match-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 15px;
+.matches {
+  padding: 0 12px 30px;
 }
 
 .match {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 10px;
-  padding: 15px;
-  transition: all 0.3s ease;
+  background: #141414;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #1e1e1e;
+  box-shadow: 0 2px 4px rgba(255, 0, 0, 0.1);
+  transition: 0.2s;
 }
 
 .match:hover {
-  transform: scale(1.02);
-  border-color: #ffcc00;
+  border-color: #ff1a1a;
+  background: #191919;
 }
 
-.match h3 {
-  color: #ffcc00;
+.teams {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.match p {
-  margin: 5px 0;
+.team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.score {
+  font-weight: 700;
+  font-size: 1.1em;
+  color: #fff;
+  text-align: center;
+  width: 60px;
+}
+
+.info {
+  font-size: 0.78em;
+  color: #bbb;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.loading {
+  text-align: center;
+  color: #999;
+  padding: 20px;
   font-size: 0.9em;
 }
-.match-date {
-  color: #00ff88;
-  font-weight: bold;
-  margin: 15px 10px 8px;
-  font-size: 1em;
-  border-bottom: 1px solid #007a3d;
-  padding-bottom: 3px;
+
+/* Footer bar si bet365 */
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: #111;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  border-top: 1px solid #222;
+}
+
+.footer button {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.footer button.active {
+  color: #ff1a1a;
+}
+
+.footer button:hover {
+  color: #ff3333;
 }
