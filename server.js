@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ Rrugë për marrjen e ndeshjeve (me proxy)
+// ✅ Endpoint që merr ndeshjet përmes proxy të sigurt
 app.get("/api/matches", async (req, res) => {
   const status = req.query.status || "SCHEDULED";
   const dateFrom = new Date().toISOString().split("T")[0];
@@ -21,18 +21,17 @@ app.get("/api/matches", async (req, res) => {
     .split("T")[0];
 
   try {
-    // ✅ Proxy për të shmangur bllokimin e API-së
-    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(
-      `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`
-    )}`;
+    const apiUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`;
+    const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`;
 
-    const response = await fetch(url, {
-      headers: { "User-Agent": "shqip365-live" },
+    const response = await fetch(proxyUrl, {
+      headers: {
+        "X-Auth-Token": API_KEY,
+        "User-Agent": "shqip365-live"
+      }
     });
 
-    const proxyData = await response.json();
-    const data = JSON.parse(proxyData.contents);
-
+    const data = await response.json();
     res.json(data);
   } catch (err) {
     console.error("❌ Gabim gjatë marrjes së ndeshjeve:", err);
