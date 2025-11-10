@@ -5,47 +5,75 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Shqip365</title>
   <style>
+    :root {
+      --bg: #022b1b;
+      --header: #004d26;
+      --tab: #025c2a;
+      --active: #00c851;
+      --text: #ffffff;
+      --secondary: #9ae49a;
+      --card: #034225;
+    }
+    body.light {
+      --bg: #f5f5f5;
+      --header: #dcdcdc;
+      --tab: #bcbcbc;
+      --active: #008c4a;
+      --text: #111;
+      --secondary: #333;
+      --card: #fff;
+    }
+
     body {
       font-family: Arial, sans-serif;
-      background-color: #022b1b;
-      color: #fff;
+      background-color: var(--bg);
+      color: var(--text);
       margin: 0;
       padding: 0;
+      transition: 0.3s;
     }
     header {
-      background-color: #004d26;
+      background-color: var(--header);
       text-align: center;
       padding: 15px 0;
       font-size: 1.8em;
       font-weight: bold;
       color: #f8e71c;
     }
-    .tabs {
+    .tabs, .filters {
       display: flex;
       justify-content: center;
-      background-color: #013d18;
+      background-color: var(--tab);
       padding: 10px 0;
+      flex-wrap: wrap;
     }
-    .tab {
-      margin: 0 10px;
-      padding: 8px 20px;
+    .tab, .filter-btn {
+      margin: 5px;
+      padding: 8px 18px;
       border-radius: 20px;
       cursor: pointer;
-      background-color: #025c2a;
-      color: #fff;
+      background-color: var(--tab);
+      color: var(--text);
       font-weight: bold;
+      transition: 0.3s;
+      border: 1px solid var(--active);
     }
-    .tab.active {
-      background-color: #00c851;
+    .tab.active, .filter-btn.active {
+      background-color: var(--active);
+      color: #fff;
     }
     .matches {
       padding: 20px;
     }
     .match {
-      background-color: #034225;
+      background-color: var(--card);
       margin-bottom: 12px;
       padding: 10px;
       border-radius: 8px;
+      transition: 0.2s;
+    }
+    .match:hover {
+      transform: scale(1.02);
     }
     .match img {
       width: 25px;
@@ -58,16 +86,30 @@
       font-size: 1.1em;
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
     }
     .status {
       font-size: 0.9em;
-      color: #9ae49a;
+      color: var(--secondary);
     }
     .loading {
       text-align: center;
       margin-top: 40px;
       font-size: 1.2em;
-      color: #9ae49a;
+      color: var(--secondary);
+    }
+    .theme-toggle {
+      position: fixed;
+      bottom: 15px;
+      right: 15px;
+      background-color: var(--active);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0px 0px 8px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -80,12 +122,21 @@
     <div class="tab" onclick="loadMatches('finished')">Përfunduar</div>
   </div>
 
+  <div class="filters" id="leagueFilters"></div>
+
   <div class="matches" id="matches">
     <div class="loading">Po ngarkohen ndeshjet...</div>
   </div>
 
+  <button class="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
+
   <script>
+    let allMatches = [];
+    let currentType = 'live';
+    let refreshInterval;
+
     async function loadMatches(type) {
+      currentType = type;
       document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
       document.querySelector(`.tab[onclick="loadMatches('${type}')"]`).classList.add("active");
 
@@ -101,35 +152,75 @@
           return;
         }
 
-        let html = "";
-        data.response.forEach(item => {
-          const fixture = item.fixture;
-          const teams = item.teams;
-          const goals = item.goals;
-          const league = item.league;
+        allMatches = data.response;
+        renderMatches(allMatches);
+        renderLeagues(allMatches);
 
-          const date = new Date(fixture.date);
-          const time = date.toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
-
-          html += `
-            <div class="match">
-              <div class="status">${league.name} • ${time}</div>
-              <h3>
-                <img src="${teams.home.logo}" alt=""> ${teams.home.name}
-                ${goals.home ?? 0} - ${goals.away ?? 0}
-                <img src="${teams.away.logo}" alt=""> ${teams.away.name}
-              </h3>
-            </div>
-          `;
-        });
-
-        matchesDiv.innerHTML = html;
+        clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => loadMatches(currentType), 60000);
       } catch (err) {
         matchesDiv.innerHTML = `<div class="loading">Gabim gjatë ngarkimit të ndeshjeve ⚠️</div>`;
       }
     }
 
-    // Ngarko ndeshjet live kur hapet faqja
+    function renderMatches(matches) {
+      const matchesDiv = document.getElementById("matches");
+      let html = "";
+
+      matches.forEach(item => {
+        const fixture = item.fixture;
+        const teams = item.teams;
+        const goals = item.goals;
+        const league = item.league;
+        const date = new Date(fixture.date);
+        const time = date.toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
+
+        html += `
+          <div class="match" data-league="${league.name}">
+            <div class="status">${league.name} • ${time}</div>
+            <h3>
+              <img src="${teams.home.logo}" alt=""> ${teams.home.name}
+              ${goals.home ?? 0} - ${goals.away ?? 0}
+              <img src="${teams.away.logo}" alt=""> ${teams.away.name}
+            </h3>
+          </div>
+        `;
+      });
+      matchesDiv.innerHTML = html;
+    }
+
+    function renderLeagues(matches) {
+      const leagues = [...new Set(matches.map(m => m.league.name))];
+      const filterDiv = document.getElementById("leagueFilters");
+      filterDiv.innerHTML = `<div class="filter-btn active" onclick="filterLeague('all')">Të gjitha</div>`;
+      leagues.forEach(league => {
+        filterDiv.innerHTML += `<div class="filter-btn" onclick="filterLeague('${league}')">${league}</div>`;
+      });
+    }
+
+    function filterLeague(league) {
+      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
+      const activeBtn = Array.from(document.querySelectorAll(".filter-btn")).find(b => b.textContent === league || (league === 'all' && b.textContent === 'Të gjitha'));
+      if (activeBtn) activeBtn.classList.add("active");
+
+      const matchesDiv = document.getElementById("matches");
+      if (league === 'all') {
+        renderMatches(allMatches);
+      } else {
+        renderMatches(allMatches.filter(m => m.league.name === league));
+      }
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const btn = document.querySelector('.theme-toggle');
+      if (document.body.classList.contains('light')) {
+        btn.textContent = "🌑 Dark";
+      } else {
+        btn.textContent = "🌙 Light";
+      }
+    }
+
     loadMatches('live');
   </script>
 </body>
