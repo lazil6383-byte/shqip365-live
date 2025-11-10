@@ -9,24 +9,17 @@ app.use(express.static("public"));
 const API_KEY = "7340eeb21f7242de84d5b3bfdf6ac453";
 const BASE_URL = "https://api.football-data.org/v4";
 
-// ✅ Ligat kryesore + disa shtesë (si Bet365)
-const COMPETITIONS = [
-  "PL", "PD", "SA", "BL1", "FL1", // top 5
-  "CL", "EL", "EC",               // UEFA
-  "PPL", "DED", "BSA", "ELC",     // shtesë
-  "WC-QUAL", "CLI", "MLS"         // kombëtare & jashtë Evropës
-];
+// ✅ Vetëm ligat që funksionojnë me planin falas
+const COMPETITIONS = ["PL", "PD", "SA", "BL1", "FL1"]; // 5 top leagues
 
-// 🧠 Merr ndeshjet për një ligë të caktuar (me datë & orar)
-async function getMatchesForLeague(competition, status = "SCHEDULED") {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+async function getMatchesForLeague(competition) {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
 
-  const dateFrom = today.toISOString().split("T")[0];
+  const dateFrom = now.toISOString().split("T")[0];
   const dateTo = tomorrow.toISOString().split("T")[0];
-
-  const url = `${BASE_URL}/competitions/${competition}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`;
+  const url = `${BASE_URL}/competitions/${competition}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
 
   try {
     const res = await fetch(url, {
@@ -34,24 +27,27 @@ async function getMatchesForLeague(competition, status = "SCHEDULED") {
     });
 
     if (!res.ok) {
-      console.error(`Gabim (${res.status}) në ${competition}`);
+      console.error(`Gabim për ${competition}:`, res.status);
       return [];
     }
 
     const data = await res.json();
     if (!data.matches) return [];
 
-    // Formatim për frontend-in
-    return data.matches.map(match => ({
-      id: match.id,
+    return data.matches.map((match) => ({
       league: data.competition?.name || "N/A",
       homeTeam: match.homeTeam.name,
       awayTeam: match.awayTeam.name,
+      date: new Date(match.utcDate).toLocaleDateString("sq-AL", {
+        day: "2-digit",
+        month: "short",
+      }),
+      time: new Date(match.utcDate).toLocaleTimeString("sq-AL", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       status: match.status,
-      utcDate: match.utcDate,
-      time: new Date(match.utcDate).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" }),
-      date: new Date(match.utcDate).toLocaleDateString("sq-AL", { day: "2-digit", month: "short" }),
-      score: match.score?.fullTime || {}
+      score: match.score?.fullTime || {},
     }));
   } catch (err) {
     console.error("Gabim gjatë marrjes së ndeshjeve:", err);
@@ -59,46 +55,24 @@ async function getMatchesForLeague(competition, status = "SCHEDULED") {
   }
 }
 
-// ✅ Merr të gjitha ndeshjet nga të gjitha ligat
-async function getAllMatches(status = "SCHEDULED") {
+async function getAllMatches() {
   let allMatches = [];
   for (const comp of COMPETITIONS) {
-    const matches = await getMatchesForLeague(comp, status);
+    const matches = await getMatchesForLeague(comp);
     allMatches = allMatches.concat(matches);
   }
 
-  // Rendit sipas orarit
-  return allMatches.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+  return allMatches.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-// ✅ Endpoint kryesor LIVE + SCHEDULED
 app.get("/live", async (req, res) => {
-  const live = await getAllMatches("IN_PLAY");
-  if (live.length > 0) return res.json({ matches: live });
-
-  const scheduled = await getAllMatches("SCHEDULED");
-  res.json({ matches: scheduled });
+  const matches = await getAllMatches();
+  res.json({ matches });
 });
 
-// ✅ Ndeshjet së shpejti
-app.get("/upcoming", async (req, res) => {
-  const upcoming = await getAllMatches("SCHEDULED");
-  res.json({ matches: upcoming });
-});
-
-// ✅ Ndeshjet e përfunduara
-app.get("/finished", async (req, res) => {
-  const finished = await getAllMatches("FINISHED");
-  res.json({ matches: finished });
-});
-
-// ✅ Faqja kryesore
 app.get("/", (req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
-// ✅ Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`✅ Shqip365 Pro Live në portën ${PORT}`)
-);
+app.listen(PORT, () => console.log(`✅ Shqip365 Live në portën ${PORT}`));
