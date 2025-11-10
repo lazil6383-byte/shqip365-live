@@ -12,16 +12,22 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "public")));
 
+// === Fetch ndeshje sipas statusit ===
 app.get("/api/matches", async (req, res) => {
-  const status = req.query.status || "LIVE";
+  const status = req.query.status || "SCHEDULED"; // default: ndeshje qe do zhvillohen
+  const dateFrom = new Date().toISOString().split("T")[0];
+  const dateTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // sot + 2 dite
 
   try {
-    const response = await fetch(`https://api.football-data.org/v4/matches?status=${status}`, {
-      headers: {
-        "X-Auth-Token": API_KEY,
-        "User-Agent": "shqip365-live"
+    const response = await fetch(
+      `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`,
+      {
+        headers: {
+          "X-Auth-Token": API_KEY,
+          "User-Agent": "shqip365-live"
+        }
       }
-    });
+    );
 
     const text = await response.text();
 
