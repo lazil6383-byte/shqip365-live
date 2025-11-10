@@ -1,66 +1,89 @@
 <!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shqip365 - Ndeshjet e Sotme</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shqip365 - Ndeshjet</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <h1>Shqip365</h1>
     <nav>
-      <a href="#" class="active" onclick="loadMatches('LIVE')">Live</a>
-      <a href="#" onclick="loadMatches('SCHEDULED')">Së Shpejti</a>
-      <a href="#" onclick="loadMatches('FINISHED')">Përfunduar</a>
+      <a href="#" id="live-tab" class="active">Live</a>
+      <a href="#" id="upcoming-tab">Së Shpejti</a>
+      <a href="#" id="finished-tab">Përfunduar</a>
     </nav>
   </header>
 
   <main id="matches-container">
-    <p>Duke u ngarkuar ndeshjet ⚽...</p>
+    <p class="loading">Duke ngarkuar ndeshjet ⚽...</p>
   </main>
 
   <script>
-    const API_KEY = "49e8b9175faa444ebe06923fc9b2a81b";
-    const API_URL = "https://api.football-data.org/v4/matches";
     const container = document.getElementById("matches-container");
+    const liveTab = document.getElementById("live-tab");
+    const upcomingTab = document.getElementById("upcoming-tab");
+    const finishedTab = document.getElementById("finished-tab");
+    const API_URL = "/api/matches"; // ✅ tani përdor API-në tonë lokale (proxy)
 
-    async function loadMatches(status = "LIVE") {
-      container.innerHTML = `<p>Duke u ngarkuar ndeshjet ⚽...</p>`;
+    // Funksioni për të marrë ndeshjet
+    async function fetchMatches(status = "LIVE") {
+      container.innerHTML = `<p class="loading">Duke ngarkuar ndeshjet ⚽...</p>`;
       try {
-        const res = await fetch(`${API_URL}?status=${status}`, {
-          headers: { "X-Auth-Token": API_KEY }
-        });
+        const res = await fetch(`${API_URL}?status=${status}`);
+        if (!res.ok) throw new Error("Gabim në kërkesë");
         const data = await res.json();
 
         if (!data.matches || data.matches.length === 0) {
-          container.innerHTML = `<p>S’ka ndeshje aktualisht ⚽</p>`;
+          container.innerHTML = `<p class="no-matches">S'ka ndeshje aktualisht ⚽</p>`;
           return;
         }
 
-        container.innerHTML = data.matches.map(match => {
-          const home = match.homeTeam.name;
-          const away = match.awayTeam.name;
-          const score = match.score.fullTime.home !== null
-            ? `${match.score.fullTime.home} - ${match.score.fullTime.away}`
-            : "vs";
-          const competition = match.competition.name;
-          const time = new Date(match.utcDate).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
-
-          return `
-            <div class="match">
-              <h3>${home} <span class="score">${score}</span> ${away}</h3>
-              <p>${competition} • ${time}</p>
+        // Shfaq ndeshjet
+        container.innerHTML = data.matches.map(match => `
+          <div class="match-card">
+            <div class="team">
+              <span>${match.homeTeam.name}</span>
             </div>
-          `;
-        }).join("");
+            <div class="score">
+              ${match.score.fullTime.home ?? "-"} : ${match.score.fullTime.away ?? "-"}
+            </div>
+            <div class="team">
+              <span>${match.awayTeam.name}</span>
+            </div>
+            <div class="status">${match.status}</div>
+          </div>
+        `).join("");
       } catch (error) {
-        container.innerHTML = `<p>Gabim gjatë marrjes së ndeshjeve ❌</p>`;
         console.error(error);
+        container.innerHTML = `<p class="error">Gabim gjatë marrjes së ndeshjeve ❌</p>`;
       }
     }
 
-    loadMatches(); // ngarkon automatikisht ndeshjet live
+    // Ngarko fillimisht ndeshjet live
+    fetchMatches("LIVE");
+
+    // Butonat për ndërrim
+    liveTab.addEventListener("click", () => {
+      setActive(liveTab);
+      fetchMatches("LIVE");
+    });
+
+    upcomingTab.addEventListener("click", () => {
+      setActive(upcomingTab);
+      fetchMatches("SCHEDULED");
+    });
+
+    finishedTab.addEventListener("click", () => {
+      setActive(finishedTab);
+      fetchMatches("FINISHED");
+    });
+
+    function setActive(tab) {
+      document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
+      tab.classList.add("active");
+    }
   </script>
 </body>
 </html>
