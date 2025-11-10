@@ -1,7 +1,7 @@
 {
-  "name": "shqip365-live",
-  "version": "2.0.0",
-  "description": "Shqip365 - futboll live, fixtures, rezultate dhe tabela me cache + fallback API",
+  "name": "shqip365",
+  "version": "2.1.0",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
