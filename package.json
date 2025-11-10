@@ -1,5 +1,5 @@
 {
-  "name": "shqip365-live-free",
+  "name": "shqip365-live",
   "version": "1.0.0",
   "type": "module",
   "main": "server.js",
@@ -10,7 +10,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2"
   }
 }
