@@ -3,190 +3,117 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shqip365 - Ndeshjet</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Shqip365 - Ndeshjet Live</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <header>Shqip365</header>
+  <header>
+    <h1>Shqip365</h1>
+    <nav>
+      <button class="active" onclick="showCategory('live')">Live</button>
+      <button onclick="showCategory('upcoming')">Së Shpejti</button>
+      <button onclick="showCategory('finished')">Përfunduar</button>
+      <button onclick="showCategory('all')">Të Gjitha</button>
+    </nav>
+  </header>
 
-  <div class="tabs">
-    <div class="tab" onclick="navigate('live')">Live</div>
-    <div class="tab active" onclick="loadMatches('upcoming')">Së Shpejti</div>
-    <div class="tab" onclick="loadMatches('finished')">Përfunduar</div>
-  </div>
+  <main id="matches-container">
+    <div class="loading">Duke ngarkuar ndeshjet...</div>
+  </main>
 
-  <div class="filters" id="leagueFilters"></div>
-
-  <div class="matches" id="matches">
-    <div class="loading">Po ngarkohen ndeshjet...</div>
-  </div>
+  <footer>
+    <p>© 2025 Shqip365 - Të gjitha të drejtat e rezervuara.</p>
+  </footer>
 
   <script>
-    let allMatches = [];
-    let currentType = 'upcoming';
-    let refreshInterval;
+    const container = document.getElementById('matches-container');
 
-    function navigate(type) {
-      window.location.href = type === 'live' ? '/' : `/matches?type=${type}`;
-    }
+    async function loadMatches(type = 'live') {
+      container.innerHTML = '<div class="loading">Duke ngarkuar...</div>';
+      let endpoint = '';
 
-    async function loadMatches(type) {
-      currentType = type;
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      document.querySelector(`.tab[onclick="loadMatches('${type}')"]`).classList.add("active");
+      const today = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
-      const container = document.getElementById("matches");
-      container.innerHTML = `<div class="loading">Po ngarkohen ndeshjet...</div>`;
+      if (type === 'live') {
+        endpoint = 'https://v3.football.api-sports.io/fixtures?live=all';
+      } else if (type === 'upcoming') {
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${tomorrow}`;
+      } else if (type === 'finished') {
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}&status=FT`;
+      } else {
+        endpoint = `https://v3.football.api-sports.io/fixtures?date=${today}`;
+      }
 
       try {
-        let res = await fetch(`/matches?type=${type}`);
-        let data = await res.json();
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'x-apisports-key': 'VENDOS_API_KEY_TËND_KËTU'
+          }
+        });
 
-        if ((!data.response || data.response.length === 0) && type === 'upcoming') {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          const formattedDate = tomorrow.toISOString().split('T')[0];
-          res = await fetch(`/matches?type=upcoming&date=${formattedDate}`);
-          data = await res.json();
-        }
+        const data = await response.json();
 
         if (!data.response || data.response.length === 0) {
-          container.innerHTML = `<div class="loading">Nuk ka ndeshje të planifikuara ⚽</div>`;
+          container.innerHTML = '<div class="no-matches">Nuk ka ndeshje për këtë kategori.</div>';
           return;
         }
 
-        allMatches = data.response;
-        renderLeagues(allMatches);
-        renderMatchesGrouped(allMatches);
+        container.innerHTML = '';
 
-        clearInterval(refreshInterval);
-        refreshInterval = setInterval(() => loadMatches(currentType), 60000);
-      } catch (e) {
-        container.innerHTML = `<div class="loading">Gabim gjatë ngarkimit të ndeshjeve ⚠️</div>`;
-      }
-    }
+        let currentDate = '';
+        data.response.forEach(match => {
+          const date = new Date(match.fixture.date).toLocaleDateString('sq-AL', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          });
 
-    function renderLeagues(matches) {
-      const leagues = [...new Set(matches.map(m => m.league.name))];
-      const div = document.getElementById("leagueFilters");
-      div.innerHTML = `<div class="filter-btn active" onclick="filterLeague('all')">Të gjitha</div>`;
-      leagues.forEach(league => {
-        div.innerHTML += `<div class="filter-btn" onclick="filterLeague('${league}')">${league}</div>`;
-      });
-    }
+          if (date !== currentDate) {
+            currentDate = date;
+            container.innerHTML += `<h2 class="match-date">📅 ${date}</h2>`;
+          }
 
-    function renderMatchesGrouped(matches) {
-      const container = document.getElementById("matches");
-      container.innerHTML = "";
-
-      const grouped = matches.reduce((acc, match) => {
-        const date = new Date(match.fixture.date).toLocaleDateString("sq-AL", { day: "2-digit", month: "long", year: "numeric" });
-        if (!acc[date]) acc[date] = [];
-        acc[date].push(match);
-        return acc;
-      }, {});
-
-      for (const [date, games] of Object.entries(grouped)) {
-        container.innerHTML += `<h3 class="match-date">📅 ${date}</h3>`;
-        games.forEach(m => {
-          const f = m.fixture;
-          const t = m.teams;
-          const g = m.goals;
-          const l = m.league;
-
-          const time = new Date(f.date).toLocaleTimeString("sq-AL", { hour: "2-digit", minute: "2-digit" });
-          const status = f.status?.short === "FT" ? "Përfunduar" :
-                        f.status?.short === "NS" ? "Së shpejti" :
-                        f.status?.short?.includes("'") ? `${f.status.short} min` : "Live";
+          const home = match.teams.home;
+          const away = match.teams.away;
+          const league = match.league.name;
+          const time = new Date(match.fixture.date).toLocaleTimeString('sq-AL', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
 
           container.innerHTML += `
-            <div class="match" data-league="${l.name}">
+            <div class="match-card">
+              <div class="league">${league} • ${time}</div>
               <div class="teams">
-                <div class="team"><img src="${t.home.logo}" alt=""><span>${t.home.name}</span></div>
-                <div class="score">${g.home ?? 0} - ${g.away ?? 0}</div>
-                <div class="team" style="justify-content: flex-end;">
-                  <span>${t.away.name}</span><img src="${t.away.logo}" alt="">
+                <div class="team">
+                  <img src="${home.logo}" alt="${home.name}" />
+                  <span>${home.name}</span>
+                </div>
+                <div class="score">
+                  ${match.goals.home ?? '-'} : ${match.goals.away ?? '-'}
+                </div>
+                <div class="team">
+                  <img src="${away.logo}" alt="${away.name}" />
+                  <span>${away.name}</span>
                 </div>
               </div>
-              <div class="info">${l.name} • ${time} • ${status}</div>
             </div>
           `;
         });
+      } catch (err) {
+        container.innerHTML = `<div class="error">❌ Gabim gjatë ngarkimit të ndeshjeve.</div>`;
+        console.error(err);
       }
     }
 
-    function filterLeague(league) {
-      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
-      const active = Array.from(document.querySelectorAll(".filter-btn"))
-        .find(b => b.textContent === league || (league === "all" && b.textContent === "Të gjitha"));
-      if (active) active.classList.add("active");
-
-      const filtered = league === "all" ? allMatches : allMatches.filter(m => m.league.name === league);
-      renderMatchesGrouped(filtered);
+    function showCategory(type) {
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      loadMatches(type);
     }
 
-    loadMatches('upcoming');
+    loadMatches(); // default: live
   </script>
 </body>
 </html>
-<script>
-async function loadUpcomingMatches() {
-  const container = document.querySelector('.matches');
-  container.innerHTML = '<div class="loading">Duke ngarkuar ndeshjet e ardhshme...</div>';
-
-  try {
-    const response = await fetch('https://v3.football.api-sports.io/fixtures?date=2025-11-11', {
-      method: 'GET',
-      headers: {
-        'x-apisports-key': 'VENDOS_KODIN_TËND_API_KËTU'
-      }
-    });
-    const data = await response.json();
-
-    if (!data.response || data.response.length === 0) {
-      container.innerHTML = '<div class="loading">Nuk ka ndeshje së shpejti.</div>';
-      return;
-    }
-
-    container.innerHTML = ''; // pastro
-    let currentDate = '';
-
-    data.response.forEach(match => {
-      const date = new Date(match.fixture.date).toLocaleDateString('sq-AL', {
-        day: 'numeric', month: 'long', year: 'numeric'
-      });
-
-      if (date !== currentDate) {
-        currentDate = date;
-        container.innerHTML += `<div class="match-date">📅 ${date}</div>`;
-      }
-
-      const home = match.teams.home;
-      const away = match.teams.away;
-      const league = match.league.name;
-      const country = match.league.country;
-
-      container.innerHTML += `
-        <div class="match">
-          <div class="info">${league} - ${country}</div>
-          <div class="teams">
-            <div class="team">
-              <img src="${home.logo}" alt="${home.name}">
-              <span>${home.name}</span>
-            </div>
-            <div class="score">VS</div>
-            <div class="team">
-              <img src="${away.logo}" alt="${away.name}">
-              <span>${away.name}</span>
-            </div>
-          </div>
-        </div>`;
-    });
-  } catch (error) {
-    console.error(error);
-    container.innerHTML = '<div class="loading">Gabim gjatë ngarkimit të ndeshjeve.</div>';
-  }
-}
-
-loadUpcomingMatches();
-</script>
