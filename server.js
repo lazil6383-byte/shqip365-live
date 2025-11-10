@@ -8,164 +8,214 @@ import NodeCache from "node-cache";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Siguri & performance
 app.use(helmet());
 app.use(cors());
 app.use(compression());
 app.use(morgan("tiny"));
 app.use(express.static(path.join(__dirname, "public")));
 
-// Cache në memorie
 const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 });
 
-// TheSportsDB (pa key). Live + fixtures për liga kryesore.
-// Live (gjithë futbollin): /livescore.php?l=Soccer
+/* ---------------- API Providers ---------------- */
+
+// 1) Football-Data.org (me keys – stabil & i saktë, por me pak liga në free)
+const FD_BASE = "https://api.football-data.org/v4";
+const FD_KEYS = (
+  process.env.FD_KEYS ||
+  "c639ca3a6c0a4e2cd8ee3862daabf67f,ce4ba1190d3445d0b7cc0ac80f092ef6"
+).split(",").map(s => s.trim()).filter(Boolean);
+let fdIndex = 0;
+const nextKey = () => { fdIndex = (fdIndex + 1) % FD_KEYS.length; };
+
+// 2) TheSportsDB (falas – shumë liga; pa key përdorim “demo key 3”)
 const TSD_BASE = "https://www.thesportsdb.com/api/v1/json/3";
 
-// ID të ligave kryesore (TheSportsDB)
-const LEAGUES = [
-  // Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Eredivisie, Primeira Liga, Süper Lig
-  "4328", "4335", "4332", "4331", "4334", "4337", "4344", "4387"
-];
+/* ---------------- Helpers ---------------- */
 
-// Helper fetch me timeout + cache
-async function fetchJSON(url, ttlSeconds = 60) {
-  const cached = cache.get(url);
-  if (cached) return cached;
+async function axiosTry(fn) {
+  try { return await fn(); } catch (e) { return { error: e }; }
+}
 
-  try {
-    const res = await axios.get(url, { timeout: 12000 });
-    const data = res.data || {};
-    cache.set(url, data, ttlSeconds);
-    return data;
-  } catch (e) {
-    // Kthe çfarë kemi në cache nëse ekziston
-    const fallback = cache.get(url);
-    if (fallback) return fallback;
-    return {};
+function standardizeFDMatches(fd) {
+  // Kthen objekt standard { league, utcDate, status, home, away, score }
+  if (!fd?.matches) return [];
+  return fd.matches.map(m => ({
+    provider: "FD",
+    league: m.competition?.name || "Unknown",
+    country: m.area?.name || "",
+    utcDate: m.utcDate,
+    status: m.status, // LIVE, FINISHED, SCHEDULED
+    minute: m.minute || null,
+    home: m.homeTeam?.name,
+    away: m.awayTeam?.name,
+    score: {
+      fullTime: m.score?.fullTime || {},
+      halfTime: m.score?.halfTime || {},
+      winner: m.score?.winner || null
+    }
+  }));
+}
+
+function standardizeTSDay(dayObj) {
+  // events from eventsday.php
+  const events = dayObj?.events || [];
+  return events.map(ev => ({
+    provider: "TSD",
+    league: ev.strLeague || "Unknown",
+    country: ev.strCountry || "",
+    utcDate: ev.dateEvent && ev.strTime
+      ? new Date(`${ev.dateEvent}T${ev.strTime}:00Z`).toISOString()
+      : ev.dateEvent ? new Date(`${ev.dateEvent}T00:00:00Z`).toISOString() : null,
+    status: ev.intHomeScore == null && ev.intAwayScore == null ? "SCHEDULED" : "FINISHED",
+    home: ev.strHomeTeam,
+    away: ev.strAwayTeam,
+    score: {
+      fullTime: {
+        home: ev.intHomeScore != null ? Number(ev.intHomeScore) : null,
+        away: ev.intAwayScore != null ? Number(ev.intAwayScore) : null
+      }
+    }
+  }));
+}
+
+function groupByLeague(list) {
+  const map = {};
+  list.forEach(m => {
+    const key = `${m.country} • ${m.league}`.trim();
+    if (!map[key]) map[key] = [];
+    map[key].push(m);
+  });
+  // sort by time asc
+  Object.values(map).forEach(arr => arr.sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate)));
+  return Object.entries(map).map(([league, matches]) => ({ league, matches }));
+}
+
+/* ---------------- Football-Data fetch with rotation ---------------- */
+async function fdFetch(path) {
+  // cache
+  const ck = `fd:${path}`;
+  const hit = cache.get(ck);
+  if (hit) return hit;
+
+  for (let i = 0; i < FD_KEYS.length; i++) {
+    const key = FD_KEYS[fdIndex];
+    const res = await axiosTry(() =>
+      axios.get(`${FD_BASE}${path}`, { headers: { "X-Auth-Token": key }, timeout: 10000 })
+    );
+    if (!res.error) {
+      cache.set(ck, res.data, 20);
+      return res.data;
+    }
+    const code = res.error?.response?.status;
+    if (code === 401 || code === 403 || code === 429) nextKey(); // ndërrim key
   }
+  return null;
 }
 
-// Normalizim i një eventi nga TheSportsDB
-function normalizeEvent(ev) {
-  return {
-    id: ev.idEvent || ev.id || "",
-    league: ev.strLeague || "",
-    country: ev.strCountry || ev.strLeagueAlternate || "",
-    date: ev.dateEvent || ev.dateEventLocal || "",
-    time: ev.strTime || ev.strTimeLocal || "",
-    timestamp: ev.strTimestamp || null,
-    homeTeam: ev.strHomeTeam || "",
-    awayTeam: ev.strAwayTeam || "",
-    status: ev.strStatus || "", // TheSportsDB shpesh e lë bosh; për live përdorim livescore endpoint
-    homeScore: ev.intHomeScore ?? null,
-    awayScore: ev.intAwayScore ?? null
-  };
+/* ---------------- TheSportsDB fetch (free) ---------------- */
+async function tsdFetchDay(dateISO) {
+  const d = dateISO.slice(0,10);
+  const ck = `tsd:day:${d}`;
+  const hit = cache.get(ck);
+  if (hit) return hit;
+
+  const res = await axiosTry(() =>
+    axios.get(`${TSD_BASE}/eventsday.php`, { params: { d, s: "Soccer" }, timeout: 12000 })
+  );
+  if (!res.error) {
+    cache.set(ck, res.data, 120);
+    return res.data;
+  }
+  return null;
 }
 
-// === ENDPOINT: LIVE ===
-// Përpiqemi: /livescore.php?l=Soccer
+/* ---------------- Combined Endpoints ---------------- */
+
+// LIVE
 app.get("/api/live", async (req, res) => {
   try {
-    const url = `${TSD_BASE}/livescore.php?l=Soccer`;
-    const data = await fetchJSON(url, 20);
-
-    // TheSportsDB kthen { events: [...] } ose {events:null}
-    const events = Array.isArray(data?.events) ? data.events : [];
-    const normalized = events.map(ev => {
-      const n = normalizeEvent(ev);
-      // Vendos status "LIVE" nëse nuk jepet
-      if (!n.status) n.status = "LIVE";
-      return n;
-    });
-
-    res.json({ matches: normalized });
-  } catch {
-    res.json({ matches: [] });
+    const fd = await fdFetch("/matches?status=LIVE");
+    const fdStd = standardizeFDMatches(fd);
+    // TheSportsDB nuk ka endpoint të qëndrueshëm publik për LIVE pa key — ndaj live kryesisht nga FD
+    return res.json({ ok: true, source: "FD", groups: groupByLeague(fdStd) });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: "LIVE_FETCH_FAILED" });
   }
 });
 
-// === ENDPOINT: SË SHPEJTI ===
-// Kombinojmë ndeshjet e rradhës për disa liga me eventsnextleague.php
+// SCHEDULED (Së Shpejti) – sot & nesër nga TSD + FD
 app.get("/api/upcoming", async (req, res) => {
   try {
-    const perLeague = await Promise.all(
-      LEAGUES.map(id =>
-        fetchJSON(`${TSD_BASE}/eventsnextleague.php?id=${id}`, 300)
-      )
-    );
+    const today = new Date();
+    const iso = today.toISOString();
+    const tomorrow = new Date(today.getTime() + 24*3600*1000).toISOString();
 
-    const all = [];
-    perLeague.forEach(resp => {
-      const arr = Array.isArray(resp?.events) ? resp.events : [];
-      arr.forEach(ev => all.push(normalizeEvent(ev)));
-    });
+    const [fd, tsdToday, tsdTomorrow] = await Promise.all([
+      fdFetch(`/matches?status=SCHEDULED&dateFrom=${iso.slice(0,10)}&dateTo=${tomorrow.slice(0,10)}`),
+      tsdFetchDay(iso),
+      tsdFetchDay(tomorrow)
+    ]);
 
-    // Rendit sipas date/time
-    all.sort((a, b) => {
-      const da = `${a.date} ${a.time}`;
-      const db = `${b.date} ${b.time}`;
-      return da.localeCompare(db);
-    });
+    const list = [
+      ...standardizeFDMatches(fd || {}),
+      ...standardizeTSDay(tsdToday || {}),
+      ...standardizeTSDay(tsdTomorrow || {}),
+    ];
 
-    res.json({ matches: all });
-  } catch {
-    res.json({ matches: [] });
+    // filtro vetëm të ardhshme
+    const now = Date.now();
+    const upcoming = list.filter(m => m.utcDate && new Date(m.utcDate).getTime() >= now);
+    res.json({ ok: true, groups: groupByLeague(upcoming) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "UPCOMING_FETCH_FAILED" });
   }
 });
 
-// === ENDPOINT: TË PËRFUNDUARA ===
-// eventsround.php / eventspastleague.php? — përdorim eventspastleague për secilën ligë
+// FINISHED – dje & sot
 app.get("/api/finished", async (req, res) => {
   try {
-    const perLeague = await Promise.all(
-      LEAGUES.map(id =>
-        fetchJSON(`${TSD_BASE}/eventspastleague.php?id=${id}`, 600)
-      )
-    );
+    const today = new Date();
+    const iso = today.toISOString();
+    const yesterday = new Date(today.getTime() - 24*3600*1000).toISOString();
 
-    const all = [];
-    perLeague.forEach(resp => {
-      const arr = Array.isArray(resp?.events) ? resp.events : [];
-      arr.forEach(ev => all.push(normalizeEvent(ev)));
-    });
+    const [fd, tsdToday, tsdYesterday] = await Promise.all([
+      fdFetch(`/matches?status=FINISHED&dateFrom=${yesterday.slice(0,10)}&dateTo=${iso.slice(0,10)}`),
+      tsdFetchDay(iso),
+      tsdFetchDay(yesterday)
+    ]);
 
-    // Filtro vetëm ato që kanë rezultat
-    const withScore = all.filter(m => m.homeScore !== null && m.awayScore !== null);
+    const list = [
+      ...standardizeFDMatches(fd || {}),
+      ...standardizeTSDay(tsdToday || {}),
+      ...standardizeTSDay(tsdYesterday || {}),
+    ];
 
-    // Rendit nga më e fundit
-    withScore.sort((a, b) => {
-      const da = `${a.date} ${a.time}`;
-      const db = `${b.date} ${b.time}`;
-      return db.localeCompare(da);
-    });
-
-    res.json({ matches: withScore });
-  } catch {
-    res.json({ matches: [] });
+    const finished = list.filter(m => m.status === "FINISHED");
+    // rendit nga më e reja
+    finished.sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate));
+    res.json({ ok: true, groups: groupByLeague(finished) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "FINISHED_FETCH_FAILED" });
   }
 });
 
-// Health check
+// Health
 app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    provider: "TheSportsDB (free)",
-    cacheKeys: cache.keys().length
-  });
+  res.json({ ok: true, fdKeyInUse: fdIndex+1, fdKeysTotal: FD_KEYS.length, tsd: "on" });
 });
 
-// Rrënja: shërbe index.html
-app.get("/", (req, res) => {
+// SPA support (serve index.html)
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, () =>
-  console.log(`✅ Shqip365 po punon në portin ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`✅ Shqip365 po dëgjon në port ${PORT}`);
+});
