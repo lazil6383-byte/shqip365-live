@@ -40,44 +40,40 @@ async function fetchWithRotation(url, headers) {
 // Endpoint kryesor për ndeshjet
 app.get("/matches", async (req, res) => {
   try {
-    const url = "https://api.football-data.org/v4/matches";
-    const data = await fetchWithRotation(url, {});
+    const today = new Date().toISOString().split("T")[0];
+    const url = `https://api.football-data.org/v4/matches?dateFrom=${today}&dateTo=${today}`;
+    let data = await fetchWithRotation(url, {});
+
+    // Nëse nuk ka ndeshje, përdor backup API-n
+    if (!data.matches || data.matches.length === 0) {
+      console.log("⚽ Nuk u gjetën ndeshje nga football-data.org, po përdor TheSportsDB...");
+      const backupUrl = `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`;
+      const backup = await fetch(backupUrl);
+      data = await backup.json();
+    }
+
     res.json(data);
   } catch (error) {
     console.error("❌ Gabim tek /matches:", error.message);
-
-    // Backup — TheSportsDB
-    try {
-      const backupUrl = "https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=2025-11-11&s=Soccer";
-      const backup = await fetch(backupUrl);
-      const backupData = await backup.json();
-      res.json(backupData);
-    } catch (e) {
-      res.status(500).json({ error: "Gabim gjatë ngarkimit nga API-t." });
-    }
+    res.status(500).json({ error: "Gabim gjatë ngarkimit nga API-t." });
   }
 });
 
-// --- 🔹 Shto këtë pjesë për front-end-in tënd ---
+// --- Shërbe front-end-in ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Shërbe skedarët e "public"
 app.use(express.static(path.join(__dirname, "public")));
-
-// Kur dikush hap faqen kryesore
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
-// --- 🔹 Fundi i shtesës ---
 
-// Keep alive ping për ta mbajtur Render aktiv
+// Keep alive ping për Render
 const SELF_URL = "https://shqip365-live.onrender.com";
 setInterval(() => {
   https.get(SELF_URL, (res) => {
     console.log("⏱ Ping:", res.statusCode);
   }).on("error", (err) => console.error("Ping error:", err.message));
-}, 9 * 60 * 1000); // çdo 9 minuta
+}, 9 * 60 * 1000);
 
 // Start server
 app.listen(PORT, () => {
