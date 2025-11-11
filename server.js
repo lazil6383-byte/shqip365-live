@@ -1,81 +1,108 @@
 import express from "express";
-import fetch from "node-fetch";
-import https from "https";
+import axios from "axios";
 import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
+import morgan from "morgan";
+import NodeCache from "node-cache";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+app.use(helmet());
 app.use(cors());
+app.use(compression());
+app.use(morgan("tiny"));
+app.use(express.static(path.join(__dirname, "public")));
 
-const PORT = process.env.PORT || 3000;
+// 🔑 API keys – lexohen nga ENV nëse i vendos te Render.
+// Si default, përdor çelësat që më dhe ti.
+const SPORTMONKS_KEY = process.env.SPORTMONKS_KEY || "Em3Z4L6F8SDvbTmpHxkba04V9sEitJXz6OJpqzUZqs5PXCvIVxBKHF3xLXuj";
+const FOOTBALLDATA_KEY = process.env.FOOTBALLDATA_KEY || "ce4ba1190d3445d0b7cc0ac80f092ef6";
 
-// Merr çelësat nga Render (Environment Variable FD_KEYS)
-const apiKeys = process.env.FD_KEYS ? process.env.FD_KEYS.split(",") : [];
-let currentKeyIndex = 0;
+const PORT = process.env.PORT || 10000;
+const cache = new NodeCache({ stdTTL: 45, checkperiod: 30 });
 
-// Funksion për të ndërruar automatikisht API key nëse njëra dështon
-async function fetchWithRotation(url, headers) {
-  for (let i = 0; i < apiKeys.length; i++) {
-    const key = apiKeys[currentKeyIndex];
-    try {
-      const response = await fetch(url, {
-        headers: { ...headers, "X-Auth-Token": key },
-      });
+// Helpers për data
+const iso = d => d.toISOString().slice(0,10);
+const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
 
-      if (response.ok) {
-        return await response.json();
-      } else {
-        console.log(`⚠️ API Key ${key} dështoi (${response.status}), po kaloj te tjetra...`);
-        currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-      }
-    } catch (error) {
-      console.error("❌ Gabim gjatë fetch:", error.message);
-      currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    }
-  }
-  throw new Error("Të gjitha API keys dështuan");
+// Wrap për SportMonks (me cache)
+async function smGet(url, params = {}) {
+  const key = "sm:" + url + JSON.stringify(params);
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const full = "https://api.sportmonks.com/v3/football/" + url;
+  const res = await axios.get(full, { params: { api_token: SPORTMONKS_KEY, ...params } });
+  cache.set(key, res.data);
+  return res.data;
 }
 
-// Endpoint kryesor për ndeshjet
-app.get("/matches", async (req, res) => {
+// Wrap për Football-Data (me cache)
+async function fdGet(path, params = {}) {
+  const key = "fd:" + path + JSON.stringify(params);
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const full = "https://api.football-data.org/v4" + path;
+  const res = await axios.get(full, { headers: { "X-Auth-Token": FOOTBALLDATA_KEY }, params });
+  cache.set(key, res.data);
+  return res.data;
+}
+
+// === LIVE (gjithë bota)
+app.get("/api/live", async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
-    const url = `https://api.football-data.org/v4/matches?dateFrom=${today}&dateTo=${today}`;
-    let data = await fetchWithRotation(url, {});
-
-    // Nëse nuk ka ndeshje, përdor backup API-n
-    if (!data.matches || data.matches.length === 0) {
-      console.log("⚽ Nuk u gjetën ndeshje nga football-data.org, po përdor TheSportsDB...");
-      const backupUrl = `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`;
-      const backup = await fetch(backupUrl);
-      data = await backup.json();
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error("❌ Gabim tek /matches:", error.message);
-    res.status(500).json({ error: "Gabim gjatë ngarkimit nga API-t." });
+    const sm = await smGet("livescores", {
+      include: "participants;league;season;stage;round;venue"
+    });
+    const fd = await fdGet("/matches", { status: "LIVE" });
+    res.json({ sportmonks: sm, footballdata: fd });
+  } catch (e) {
+    console.error("LIVE error:", e?.response?.status, e?.message);
+    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve live." });
   }
 });
 
-// --- Shërbe front-end-in ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (req, res) => {
+// === SË SHPEJTI (5 ditët në vijim)
+app.get("/api/upcoming", async (req, res) => {
+  try {
+    const today = new Date();
+    const from = iso(today);
+    const to = iso(addDays(today, 5));
+    const sm = await smGet(`fixtures/between/${from}/${to}`, {
+      include: "participants;league;season;stage;round;venue"
+    });
+    const fd = await fdGet("/matches", { dateFrom: from, dateTo: to, status: "SCHEDULED" });
+    res.json({ sportmonks: sm, footballdata: fd });
+  } catch (e) {
+    console.error("UPCOMING error:", e?.response?.status, e?.message);
+    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve 'Së Shpejti'." });
+  }
+});
+
+// === PËRFUNDUAR (2 ditë mbrapa)
+app.get("/api/finished", async (req, res) => {
+  try {
+    const today = new Date();
+    const from = iso(addDays(today, -2));
+    const to = iso(today);
+    const sm = await smGet(`fixtures/between/${from}/${to}`, {
+      include: "participants;league;season;stage;round;venue"
+    });
+    const fd = await fdGet("/matches", { dateFrom: from, dateTo: to, status: "FINISHED" });
+    res.json({ sportmonks: sm, footballdata: fd });
+  } catch (e) {
+    console.error("FINISHED error:", e?.response?.status, e?.message);
+    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve të përfunduara." });
+  }
+});
+
+// Faqja
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Keep alive ping për Render
-const SELF_URL = "https://shqip365-live.onrender.com";
-setInterval(() => {
-  https.get(SELF_URL, (res) => {
-    console.log("⏱ Ping:", res.statusCode);
-  }).on("error", (err) => console.error("Ping error:", err.message));
-}, 9 * 60 * 1000);
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`✅ Shqip365 running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Shqip365 • Live API running on port ${PORT}`));
