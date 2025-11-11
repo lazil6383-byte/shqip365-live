@@ -1,67 +1,45 @@
-:root {
-  --bg: #0f1115;
-  --card: #171a21;
-  --muted: #8b9097;
-  --white: #e9eef6;
-  --accent: #ff2b45;
-  --chip: #2a2f3a;
-  --chip2: #3a4250;
+/* Shqip365 • stil profesional (kuq e zi) */
+:root{
+  --bg:#0b0b0f;
+  --panel:#121218;
+  --muted:#9aa0a6;
+  --accent:#e50914;
+  --success:#18e07c;
+  --warning:#ffd166;
 }
-* { box-sizing: border-box; }
-body {
-  margin: 0; background: var(--bg); color: var(--white);
-  font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.top{
+  position:sticky;top:0;z-index:9;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;background:#0e0e14;border-bottom:1px solid #1c1c25
 }
-.top {
-  display:flex; align-items:center; justify-content:space-between;
-  padding: 14px 16px; position: sticky; top:0; background: rgba(15,17,21,.9); backdrop-filter: blur(8px); z-index:10;
-  border-bottom: 1px solid #1f2430;
+.brand{font-weight:800;font-size:22px;letter-spacing:0.5px}
+.brand span{color:var(--accent)}
+.tabs{display:flex;gap:8px}
+.tab{
+  background:#161622;border:1px solid #232334;color:#fff;border-radius:8px;
+  padding:8px 12px;font-weight:600;cursor:pointer
 }
-.brand { font-weight:800; letter-spacing:.2px; font-size:22px; }
-.brand span { color: var(--accent); }
-.tabs { display:flex; gap:10px; }
-.tab {
-  background:#1a1f28; color:#cfd5df; border:1px solid #262c39; padding:8px 14px;
-  border-radius:10px; cursor:pointer; font-weight:700;
+.tab.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;color:#fff}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{
+  background:var(--panel);border:1px solid #1e1e29;border-radius:12px;padding:12px;
+  display:flex;flex-direction:column;gap:10px
 }
-.tab.active { background: var(--accent); border-color: var(--accent); color:#fff; }
-
-main { padding:16px; }
-#loading, #empty { text-align:center; color:var(--muted); margin-top:20px; }
-.hidden { display: none; }
-
-.league {
-  margin: 14px 0;
-  background: transparent;
-}
-.league h3 {
-  margin: 10px 2px 8px; font-size:15px; font-weight:800; color:#c2c8d2;
-}
-.card {
-  background: var(--card); border:1px solid #232938; border-radius:14px;
-  padding: 14px; margin-bottom:10px;
-}
-.row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.teams { display:flex; flex-direction:column; gap:6px; font-weight:800; }
-.badge {
-  background: var(--chip); color:#d6dbe6; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:700;
-}
-.badge.upcoming { background: #24414f; }
-.badge.live { background:#b3283d; }
-.badge.finished { background: #2e3b2e; }
-.kick { color:#bfc6d3; font-size:13px; }
-.score { font-size:18px; font-weight:900; }
-
-.goal {
-  animation: flash 0.8s ease-in-out 2;
-}
-@keyframes flash {
-  0% { box-shadow: 0 0 0px rgba(255,43,69,0); }
-  50% { box-shadow: 0 0 24px rgba(255,43,69,.35); }
-  100% { box-shadow: 0 0 0px rgba(255,43,69,0); }
-}
-
-.foot {
-  color: var(--muted); text-align:center; font-size:13px; padding: 24px 12px;
-  border-top: 1px solid #1c2230; margin-top:10px;
+.league{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.team{display:flex;align-items:center;gap:8px;font-weight:700}
+.vs{color:var(--muted);font-weight:700}
+.status{font-size:12px;color:var(--warning);font-weight:700}
+.live .status{color:var(--success)}
+.badge{font-size:11px;border:1px solid #2b2b36;border-radius:16px;padding:3px 8px;color:var(--muted)}
+.time{font-size:13px;color:#fff}
+.score{font-size:18px;font-weight:800}
+#loading{padding:24px;text-align:center;color:var(--muted)}
+.hidden{display:none}
+.foot{padding:20px;text-align:center;color:var(--muted);opacity:.8}
+@media (max-width:480px){
+  .grid{grid-template-columns:1fr}
 }
