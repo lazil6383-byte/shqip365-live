@@ -2,6 +2,8 @@ import express from "express";
 import fetch from "node-fetch";
 import https from "https";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
@@ -56,7 +58,20 @@ app.get("/matches", async (req, res) => {
   }
 });
 
-// Keep alive ping për ta mbajtur Render 24/7 aktiv
+// --- 🔹 Shto këtë pjesë për front-end-in tënd ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Shërbe skedarët e "public"
+app.use(express.static(path.join(__dirname, "public")));
+
+// Kur dikush hap faqen kryesore
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+// --- 🔹 Fundi i shtesës ---
+
+// Keep alive ping për ta mbajtur Render aktiv
 const SELF_URL = "https://shqip365-live.onrender.com";
 setInterval(() => {
   https.get(SELF_URL, (res) => {
