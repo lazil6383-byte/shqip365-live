@@ -1,74 +1,124 @@
 import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import fetch from "node-fetch";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 1000;
 
-const API_KEY = process.env.SPORTMONKS_API_KEY;
-const BASE_URL = "https://api.sportmonks.com/v3/football";
+// Fix për __dirname në ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Ligat kryesore evropiane për t'i marrë të gjitha ndeshjet
-const LEAGUES = [
-  8,   // Champions League
-  82,  // Europa League
-  301, // Premier League
-  302, // La Liga
-  303, // Serie A
-  304, // Bundesliga
-  307, // Ligue 1
-  362, // Eredivisie
-  384  // Liga Portugal
-];
+// Shërbe folderin public
+app.use(express.static(path.join(__dirname, "public")));
 
-// -------------------------
-// Funksion universal për marrje të dhënash
-// -------------------------
-async function fetchMatches(status) {
+
+// =========================
+//       TEST ROUTE
+// =========================
+
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API is working 🚀" });
+});
+
+
+// =========================
+//   LIVE MATCHES ROUTE
+// =========================
+
+app.get("/api/live", async (req, res) => {
   try {
-    const url = `${BASE_URL}/fixtures?api_token=${API_KEY}&include=scores;participants;league&filters=status:${status};league_id:${LEAGUES.join(",")}`;
+    const API_KEY = process.env.SPORTMONKS_API_KEY;
+
+    const url = `https://api.sportmonks.com/v3/football/livescores?api_token=${API_KEY}`;
 
     const response = await fetch(url);
     const data = await response.json();
 
-    return data.data || [];
-  } catch (err) {
-    console.error("Gabim gjatë marrjes së ndeshjeve:", err);
-    return [];
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error getting livescores" });
   }
-}
-
-// -------------------------
-// ENDPOINT – LIVE MATCHES
-// -------------------------
-app.get("/api/live", async (req, res) => {
-  const matches = await fetchMatches("live");
-  res.json(matches);
 });
 
-// -------------------------
-// ENDPOINT – UPCOMING
-// -------------------------
-app.get("/api/upcoming", async (req, res) => {
-  const matches = await fetchMatches("not_started");
-  res.json(matches);
+
+// =========================
+//     ALL EUROPEAN LEAGUES
+// =========================
+
+app.get("/api/leagues", async (req, res) => {
+  try {
+    const API_KEY = process.env.SPORTMONKS_API_KEY;
+
+    const leagueIds = [
+      8,   // Premier League
+      564, // La Liga
+      384, // Serie A
+      82,  // Bundesliga
+      301, // Ligue 1
+      2,   // Champions League
+      5,   // Europa League
+      6,   // Conference League
+      88,  // Eredivisie
+      301, // Primeira Liga
+      144, // Belgian Pro League
+      571  // Greek Super League
+    ];
+
+    const url = `https://api.sportmonks.com/v3/football/leagues/multi/${leagueIds.join(",")}?api_token=${API_KEY}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching leagues" });
+  }
 });
 
-// -------------------------
-// ENDPOINT – FINISHED
-// -------------------------
-app.get("/api/finished", async (req, res) => {
-  const matches = await fetchMatches("finished");
-  res.json(matches);
+
+// =========================
+//     MATCHES BY LEAGUE
+// =========================
+// Example: /api/matches/8  → Premier League
+
+app.get("/api/matches/:leagueId", async (req, res) => {
+  try {
+    const leagueId = req.params.leagueId;
+    const API_KEY = process.env.SPORTMONKS_API_KEY;
+
+    const url = `https://api.sportmonks.com/v3/football/fixtures/by-league/${leagueId}?api_token=${API_KEY}&include=scores;participants;state`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching matches by league" });
+  }
 });
 
-// -------------------------
-// START SERVER
-// -------------------------
-const PORT = process.env.PORT || 3000;
+
+// =========================
+//     DEFAULT ROUTE
+// =========================
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+
+// =========================
+//       START SERVER
+// =========================
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
