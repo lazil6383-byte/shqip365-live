@@ -1,108 +1,118 @@
 import express from "express";
-import axios from "axios";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
 import cors from "cors";
-import helmet from "helmet";
-import compression from "compression";
-import morgan from "morgan";
-import NodeCache from "node-cache";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
 const app = express();
-app.use(helmet());
+const PORT = process.env.PORT || 5000;
+const API = process.env.SPORTMONKS_API_KEY;
+
+// Aktivizo CORS për frontend
 app.use(cors());
-app.use(compression());
-app.use(morgan("tiny"));
-app.use(express.static(path.join(__dirname, "public")));
 
-// 🔑 API keys – lexohen nga ENV nëse i vendos te Render.
-// Si default, përdor çelësat që më dhe ti.
-const SPORTMONKS_KEY = process.env.SPORTMONKS_KEY || "Em3Z4L6F8SDvbTmpHxkba04V9sEitJXz6OJpqzUZqs5PXCvIVxBKHF3xLXuj";
-const FOOTBALLDATA_KEY = process.env.FOOTBALLDATA_KEY || "ce4ba1190d3445d0b7cc0ac80f092ef6";
+// 🏆 Lista e ligave të mëdha evropiane dhe botërore (me ID nga SportMonks)
+const LEAGUE_IDS = [
+  8,   // Premier League (England)
+  564, // La Liga (Spain)
+  384, // Serie A (Italy)
+  82,  // Bundesliga (Germany)
+  301, // Ligue 1 (France)
+  2,   // Champions League
+  3,   // Europa League
+  7,   // Conference League
+  179, // Eredivisie (Netherlands)
+  501, // Portuguese Liga
+  383, // Turkish Super Lig
+  19686, // Swiss Super League
+  501, // Portuguese Primeira Liga
+  480, // Scottish Premiership
+  566, // Belgian Pro League
+  362, // Danish Superliga
+  108, // Greek Super League
+  384, // Italian Serie A (duplicate to ensure fallback)
+];
 
-const PORT = process.env.PORT || 10000;
-const cache = new NodeCache({ stdTTL: 45, checkperiod: 30 });
+// 🕒 Middleware për logim
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
-// Helpers për data
-const iso = d => d.toISOString().slice(0,10);
-const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
-
-// Wrap për SportMonks (me cache)
-async function smGet(url, params = {}) {
-  const key = "sm:" + url + JSON.stringify(params);
-  const cached = cache.get(key);
-  if (cached) return cached;
-  const full = "https://api.sportmonks.com/v3/football/" + url;
-  const res = await axios.get(full, { params: { api_token: SPORTMONKS_KEY, ...params } });
-  cache.set(key, res.data);
-  return res.data;
-}
-
-// Wrap për Football-Data (me cache)
-async function fdGet(path, params = {}) {
-  const key = "fd:" + path + JSON.stringify(params);
-  const cached = cache.get(key);
-  if (cached) return cached;
-  const full = "https://api.football-data.org/v4" + path;
-  const res = await axios.get(full, { headers: { "X-Auth-Token": FOOTBALLDATA_KEY }, params });
-  cache.set(key, res.data);
-  return res.data;
-}
-
-// === LIVE (gjithë bota)
+// ✅ Endpoint për ndeshjet live
 app.get("/api/live", async (req, res) => {
   try {
-    const sm = await smGet("livescores", {
-      include: "participants;league;season;stage;round;venue"
-    });
-    const fd = await fdGet("/matches", { status: "LIVE" });
-    res.json({ sportmonks: sm, footballdata: fd });
-  } catch (e) {
-    console.error("LIVE error:", e?.response?.status, e?.message);
-    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve live." });
+    const url = `https://api.sportmonks.com/v3/football/livescores?api_token=${API}&include=participants;league;score;events`;
+    const response = await fetch(url);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error fetching live matches:", error);
+    res.status(500).json({ error: "Failed to fetch live matches" });
   }
 });
 
-// === SË SHPEJTI (5 ditët në vijim)
+// 🗓️ Endpoint për ndeshjet e ardhshme (Next 3 days)
 app.get("/api/upcoming", async (req, res) => {
   try {
-    const today = new Date();
-    const from = iso(today);
-    const to = iso(addDays(today, 5));
-    const sm = await smGet(`fixtures/between/${from}/${to}`, {
-      include: "participants;league;season;stage;round;venue"
-    });
-    const fd = await fdGet("/matches", { dateFrom: from, dateTo: to, status: "SCHEDULED" });
-    res.json({ sportmonks: sm, footballdata: fd });
-  } catch (e) {
-    console.error("UPCOMING error:", e?.response?.status, e?.message);
-    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve 'Së Shpejti'." });
+    const leagueIds = LEAGUE_IDS.join(",");
+    const url = `https://api.sportmonks.com/v3/football/fixtures/between/${getToday()}/${getFuture(3)}?api_token=${API}&filters=league_id:${leagueIds}&include=participants;league;score`;
+    const response = await fetch(url);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error fetching upcoming matches:", error);
+    res.status(500).json({ error: "Failed to fetch upcoming matches" });
   }
 });
 
-// === PËRFUNDUAR (2 ditë mbrapa)
+// 🕰️ Endpoint për ndeshjet e përfunduara (Last 3 days)
 app.get("/api/finished", async (req, res) => {
   try {
-    const today = new Date();
-    const from = iso(addDays(today, -2));
-    const to = iso(today);
-    const sm = await smGet(`fixtures/between/${from}/${to}`, {
-      include: "participants;league;season;stage;round;venue"
-    });
-    const fd = await fdGet("/matches", { dateFrom: from, dateTo: to, status: "FINISHED" });
-    res.json({ sportmonks: sm, footballdata: fd });
-  } catch (e) {
-    console.error("FINISHED error:", e?.response?.status, e?.message);
-    res.status(500).json({ error: "Gabim gjatë marrjes së ndeshjeve të përfunduara." });
+    const leagueIds = LEAGUE_IDS.join(",");
+    const url = `https://api.sportmonks.com/v3/football/fixtures/between/${getPast(3)}/${getToday()}?api_token=${API}&filters=league_id:${leagueIds}&include=participants;league;score`;
+    const response = await fetch(url);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error fetching finished matches:", error);
+    res.status(500).json({ error: "Failed to fetch finished matches" });
   }
 });
 
-// Faqja
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// 🧭 Endpoint për një ligë të caktuar (me ID)
+app.get("/api/league/:id", async (req, res) => {
+  const leagueId = req.params.id;
+  try {
+    const url = `https://api.sportmonks.com/v3/football/fixtures?api_token=${API}&filters=league_id:${leagueId}&include=participants;league;score;venue`;
+    const response = await fetch(url);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error fetching league data:", error);
+    res.status(500).json({ error: "Failed to fetch league data" });
+  }
 });
 
-app.listen(PORT, () => console.log(`✅ Shqip365 • Live API running on port ${PORT}`));
+// 📅 Funksione ndihmëse për datat
+function getToday() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function getFuture(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+function getPast(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split("T")[0];
+}
+
+// 🚀 Start server
+app.listen(PORT, () => {
+  console.log(`✅ Shqip365 server po punon në portin ${PORT}`);
+});
