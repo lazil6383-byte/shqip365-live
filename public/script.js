@@ -1,83 +1,94 @@
-const list = document.getElementById("list");
-const loading = document.getElementById("loading");
-const empty = document.getElementById("empty");
-const tabs = document.querySelectorAll(".tab");
+const API_URL = "/api/matches";
 
-let activeTab = "live";
-
-tabs.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    tabs.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    activeTab = btn.dataset.tab;
-    loadMatches();
-  });
+document.addEventListener("DOMContentLoaded", () => {
+  loadMatches();
 });
 
-function cardLeagueName(league) {
-  if (!league) return "Futboll";
-  return league;
-}
-
-function fmtStatus(status) {
-  if (!status) return "";
-  const s = status.toUpperCase();
-  if (s.includes("LIVE")) return "LIVE";
-  if (s.includes("FT")) return "FT";
-  return status;
-}
-
 async function loadMatches() {
-  loading.classList.remove("hidden");
-  empty.classList.add("hidden");
-  list.innerHTML = "";
-
-  let endpoint = "/api/live";
-  if (activeTab === "upcoming") endpoint = "/api/upcoming";
-  if (activeTab === "finished") endpoint = "/api/finished";
+  const container = document.getElementById("matches-container");
+  container.innerHTML = `<div class="loading">Duke ngarkuar ndeshjet...</div>`;
 
   try {
-    const res = await fetch(endpoint, { cache: "no-store" });
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error("Gabim nga serveri");
+
     const data = await res.json();
-
-    const matches = Array.isArray(data) ? data : [];
-
-    if (!matches.length) {
-      empty.classList.remove("hidden");
-      empty.textContent = "S’ka ndeshje për momentin.";
+    if (!Array.isArray(data) || data.length === 0) {
+      container.innerHTML = `<div class="error">S’ka ndeshje për momentin.</div>`;
       return;
     }
 
-    for (const m of matches) {
-      const card = document.createElement("div");
-      card.className = "card" + (activeTab === "live" ? " live" : "");
-
-      card.innerHTML = `
-        <div class="league">
-          ${cardLeagueName(m.league)}
-        </div>
-        <div class="row">
-          <div class="team">${m.home || "-"}</div>
-          <div class="vs">vs</div>
-          <div class="team">${m.away || "-"}</div>
-        </div>
-        <div class="row bottom">
-          <div class="status">${fmtStatus(m.status)}</div>
-          <div class="time">${m.scoreOrTime || ""}</div>
-        </div>
-      `;
-
-      list.appendChild(card);
-    }
+    renderMatches(data);
   } catch (err) {
     console.error(err);
-    empty.classList.remove("hidden");
-    empty.textContent = "Gabim gjatë marrjes së ndeshjeve.";
-  } finally {
-    loading.classList.add("hidden");
+    container.innerHTML = `<div class="error">Nuk u lexuan ndeshjet. Provo prap më vonë.</div>`;
   }
 }
 
-// Ngarko në fillim dhe rifresko çdo 60 sekonda
-loadMatches();
-setInterval(loadMatches, 60000);
+function renderMatches(matches) {
+  const container = document.getElementById("matches-container");
+  container.innerHTML = "";
+
+  // Grupi sipas datës (Thu 13 Nov, Fri 14 Nov, ...)
+  const byDate = {};
+  for (const m of matches) {
+    const key = m.date || "Today";
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(m);
+  }
+
+  const dayTemplate = document.getElementById("day-group-template");
+  const matchTemplate = document.getElementById("match-card-template");
+
+  Object.keys(byDate).forEach((dateKey) => {
+    const dayNode = dayTemplate.content.cloneNode(true);
+    const header = dayNode.querySelector(".day-header");
+    const list = dayNode.querySelector(".matches-list");
+
+    header.textContent = dateKey;
+
+    byDate[dateKey].forEach((m) => {
+      const node = matchTemplate.content.cloneNode(true);
+
+      node.querySelector(".home-name").textContent = m.home;
+      node.querySelector(".away-name").textContent = m.away;
+
+      const scoreEl = node.querySelector(".score");
+      const timeEl = node.querySelector(".time");
+
+      if (m.live) {
+        scoreEl.textContent = m.score || "0 - 0";
+        timeEl.textContent = m.time || "LIVE";
+        timeEl.style.color = "#ff4d4f";
+      } else {
+        scoreEl.textContent = "";
+        timeEl.textContent = m.time || "";
+      }
+
+      const oddHome = node.querySelector(".odd-home");
+      const oddDraw = node.querySelector(".odd-draw");
+      const oddAway = node.querySelector(".odd-away");
+
+      setOddButton(oddHome, "1", m.odds?.home);
+      setOddButton(oddDraw, "X", m.odds?.draw);
+      setOddButton(oddAway, "2", m.odds?.away);
+
+      list.appendChild(node);
+    });
+
+    container.appendChild(dayNode);
+  });
+}
+
+function setOddButton(btn, label, value) {
+  btn.innerHTML = "";
+  const spanLabel = document.createElement("span");
+  spanLabel.className = "label";
+  spanLabel.textContent = label;
+
+  const spanValue = document.createElement("span");
+  spanValue.textContent = value != null ? value.toFixed(2) : "--";
+
+  btn.appendChild(spanLabel);
+  btn.appendChild(spanValue);
+}
