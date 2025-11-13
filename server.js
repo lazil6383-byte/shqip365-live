@@ -1,65 +1,86 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
-import dotenv from "dotenv";
 
-dotenv.config();
 const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// API LIVE — SCOREBAT
-const LIVE_API = "https://www.scorebat.com/video-api/v3/feed/?token=demo";
+// ============================
+//       API SOURCES
+// ============================
 
-// API MATCHES — BACKUP (ditore)
-const MATCHES_API = "https://livescore-api.vercel.app/matches";
+// LIVE — shpejt, real-time
+const LIVE_API = "https://livescore-api.vercel.app/matches";
 
+// UPCOMING — të sakta me orar
+const UPCOMING_API = "https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=2025-11-13&s=Soccer";
+
+// FINISHED — të sakta dhe të ruajtura
+const FINISHED_API = "https://www.scorebat.com/video-api/v3/feed/?token=demo";
+
+
+// ============================
+//       ROUTE TEST
+// ============================
 app.get("/", (req, res) => {
-  res.send({ status: "API running" });
+  res.send({ status: "API RUNNING ✔️" });
 });
 
-// ======================
-//        LIVE
-// ======================
+
+// ============================
+//       LIVE MATCHES
+// ============================
 app.get("/live", async (req, res) => {
   try {
-    const response = await fetch(LIVE_API);
-    if (!response.ok) {
-      return res.status(500).json({ error: "Live API error" });
-    }
+    const r = await fetch(LIVE_API);
+    const j = await r.json();
 
-    const data = await response.json();
+    const live = j.data?.filter(m =>
+      String(m.status).toUpperCase().includes("LIVE")
+    ) || [];
 
-    // Filtrim LIVE
-    const liveMatches = data.response.filter(
-      (m) => m.matchview?.status === "LIVE"
-    );
-
-    res.json({ live: liveMatches });
+    res.json({ live });
   } catch (err) {
-    res.status(500).json({ error: "Error fetching live data" });
+    res.json({ live: [] });
   }
 });
 
-// ======================
-//     MATCHES TODAY
-// ======================
-app.get("/matches", async (req, res) => {
+
+// ============================
+//       UPCOMING MATCHES
+// ============================
+app.get("/upcoming", async (req, res) => {
   try {
-    const response = await fetch(MATCHES_API);
+    const r = await fetch(UPCOMING_API);
+    const j = await r.json();
 
-    if (!response.ok) {
-      return res.status(500).json({ error: "Matches API error" });
-    }
-
-    const data = await response.json();
-    res.json({ matches: data.data || [] });
+    res.json({ upcoming: j.events || [] });
   } catch (err) {
-    res.status(500).json({ error: "Error fetching matches" });
+    res.json({ upcoming: [] });
   }
 });
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+
+// ============================
+//       FINISHED MATCHES
+// ============================
+app.get("/finished", async (req, res) => {
+  try {
+    const r = await fetch(FINISHED_API);
+    const j = await r.json();
+
+    const finished = j.response || [];
+
+    res.json({ finished });
+  } catch (err) {
+    res.json({ finished: [] });
+  }
 });
+
+
+// ============================
+//       START SERVER
+// ============================
+app.listen(PORT, () => console.log("SERVER RUNNING ON " + PORT));
