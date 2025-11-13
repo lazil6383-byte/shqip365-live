@@ -1,45 +1,49 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
-import dotenv from "dotenv";
 
-dotenv.config();
 const app = express();
 app.use(cors());
 
+// PORT
 const PORT = process.env.PORT || 3000;
 
-// Route kryesore
+// ROUTE HOME
 app.get("/", (req, res) => {
   res.send({ status: "API running" });
 });
 
-// 🔥 API E RE (test por FUNKSIONALE)
-const PIRATE_URL = "https://api.jsonbin.io/v3/b/66ba6fa9e41b4d34e43a0e3f";
+// API E RE (JSONBIN)
+const PIRATE_URL = "https://api.jsonbin.io/v3/b/66ba6fa9e41b4d34643a0e3f"; 
 
-// /live – ndeshjet live
+// ROUTE /live
 app.get("/live", async (req, res) => {
   try {
     const response = await fetch(PIRATE_URL);
 
     if (!response.ok) {
-      return res.status(500).json({ error: "API returned an error" });
+      return res.status(500).json({
+        error: "API returned an error",
+        status: response.status
+      });
     }
 
-    const body = await response.json();
+    const json = await response.json();
 
-    const matches = body.record?.data || [];
+    // JSONBin kthen: { record: { data: [...] } }
+    const matches = json.record?.data || [];
 
+    // Filtron vetëm ndeshjet LIVE
     const liveMatches = matches.filter(m => m.status === "LIVE");
 
     res.json({ data: liveMatches });
 
   } catch (err) {
-    console.error("LIVE ERROR:", err);
-    res.status(500).json({ error: "Error fetching live matches" });
+    res.status(500).json({ error: "Error fetching live matches", details: err.message });
   }
 });
 
+// RUN SERVER
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
