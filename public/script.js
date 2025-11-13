@@ -1,108 +1,90 @@
-const list = document.getElementById('list');
-const loading = document.getElementById('loading');
-const empty = document.getElementById('empty');
-const tabs = document.querySelectorAll('.tab');
+const list = document.getElementById("list");
+const loading = document.getElementById("loading");
+const empty = document.getElementById("empty");
+const tabs = document.querySelectorAll(".tab");
 
-let activeTab = 'live';
+let activeTab = "live";
 
-// Tabs
 tabs.forEach(btn => {
-  btn.addEventListener('click', () => {
-    tabs.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+  btn.addEventListener("click", () => {
+    tabs.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
     activeTab = btn.dataset.tab;
     load();
   });
 });
 
-function badge(txt){ 
-  return `<span class="badge">${txt}</span>`; 
-}
-
-function formatDate(date){
+function fmt(d) {
   try {
-    return new Date(date).toLocaleString('sq-AL',{
-      hour:'2-digit',
-      minute:'2-digit',
-      day:'2-digit',
-      month:'short'
+    return new Date(d).toLocaleString("sq-AL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "short"
     });
   } catch {
-    return date;
+    return d;
   }
 }
 
-// NORMALIZIMI NGA API PIRATE
-function normalize(data){
-  const out = [];
+async function load() {
+  loading.classList.remove("hidden");
+  empty.classList.add("hidden");
+  list.innerHTML = "";
 
-  if (data.data) {
-    data.data.forEach(m => {
-      out.push({
-        league: m.league_name || "Liga",
-        home: m.home || "-",
-        away: m.away || "-",
-        score: m.score || "",
-        time: m.time || "",
-        status: m.status || "",
-        source: "LS"
-      });
-    });
+  let url = "/" + activeTab;
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  const arr =
+    data.live ||
+    data.upcoming ||
+    data.finished ||
+    [];
+
+  if (!arr.length) {
+    empty.classList.remove("hidden");
+    loading.classList.add("hidden");
+    return;
   }
 
-  return out;
-}
+  arr.forEach(m => {
+    const card = document.createElement("div");
+    card.className = "card";
 
-// LOAD
-async function load(){
-  loading.classList.remove('hidden');
-  empty.classList.add('hidden');
-  list.innerHTML = '';
+    const home =
+      m.homeTeam || m.strHomeTeam || m.home_name || "-";
+    const away =
+      m.awayTeam || m.strAwayTeam || m.away_name || "-";
 
-  let endpoint = '/api/live';
-  if(activeTab === 'upcoming') endpoint = '/api/upcoming';
-  if(activeTab === 'finished') endpoint = '/api/finished';
+    const status =
+      m.status || m.matchview?.status || m.strStatus || "";
 
-  try{
-    const res = await fetch(endpoint, { cache: "no-store" });
-    const data = await res.json();
+    const score = m.score || m.goalscorers || "";
 
-    const games = normalize(data);
+    const time =
+      score
+        ? score
+        : fmt(m.time || m.dateEvent || m.matchview?.kickoff);
 
-    if(games.length === 0){
-      empty.classList.remove('hidden');
-      return;
-    }
+    card.innerHTML = `
+      <div class="league">${m.league || m.strLeague || ""}</div>
+      <div class="row">
+        <div class="team">${home}</div>
+        <div class="vs">vs</div>
+        <div class="team">${away}</div>
+      </div>
+      <div class="row">
+        <div class="status">${status}</div>
+        <div class="time">${time}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
 
-    games.forEach(m => {
-      const box = document.createElement('div');
-      box.className = "match";
-
-      box.innerHTML = `
-        <div class="league">${m.league} ${badge(m.source)}</div>
-
-        <div class="teams">
-          <div>${m.home}</div>
-          <div class="vs">vs</div>
-          <div>${m.away}</div>
-        </div>
-
-        <div class="info">
-          <span>${m.status}</span>
-          <span>${m.score || formatDate(m.time)}</span>
-        </div>
-      `;
-
-      list.appendChild(box);
-    });
-
-  } catch (err){
-    empty.classList.remove('hidden');
-    empty.textContent = 'S’u morën dot ndeshjet. Provo përsëri.';
-  } finally {
-    loading.classList.add('hidden');
-  }
+  loading.classList.add("hidden");
 }
 
 load();
-setInterval(load, 30000);
+setInterval(load, 30000); // refresh çdo 30 sekonda
