@@ -1,46 +1,40 @@
-import express from 'express';
-import fetch from 'node-fetch';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express from "express";
+import fetch from "node-fetch";
+import cors from "cors";
+import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+app.use(cors());
 
-app.use(express.static(path.join(__dirname, 'public')));
+const PORT = process.env.PORT || 3000;
 
-// API PIRATE URL
-const API_URL = "https://livescore-api-pro.piratehost.net/api";
+app.get("/", (req, res) => {
+  res.send({ status: "API running" });
+});
 
-// UNIVERSAL FETCHER
-async function getData(endpoint) {
-    try {
-        const res = await fetch(`${API_URL}${endpoint}`);
-        const json = await res.json();
-        return json;
-    } catch (err) {
-        return { data: [] };
+// PIRATE API URL
+const PIRATE_URL = "https://livescore-api.vercel.app/matches";
+
+// Route për ndeshjet live
+app.get("/live", async (req, res) => {
+  try {
+    const response = await fetch(PIRATE_URL);
+    const data = await response.json();
+
+    if (!data || !data.data) {
+      return res.json({ data: [] });
     }
-}
 
-// ENDPOINTET
-app.get('/api/live', async (req, res) => {
-    const data = await getData("/live");
-    res.json(data);
+    // Filter vetëm ndeshjet LIVE
+    const liveMatches = data.data.filter(m => m.status === "LIVE");
+
+    res.json({ data: liveMatches });
+  } catch (err) {
+    res.status(500).json({ error: "Error fetching live matches" });
+  }
 });
 
-app.get('/api/upcoming', async (req, res) => {
-    const data = await getData("/fixtures");
-    res.json(data);
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
-
-app.get('/api/finished', async (req, res) => {
-    const data = await getData("/results");
-    res.json(data);
-});
-
-// RUN
-app.listen(10000, () => console.log("API running on port 10000"));
