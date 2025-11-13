@@ -1,45 +1,270 @@
-/* Shqip365 • stil profesional (kuq e zi) */
-:root{
-  --bg:#0b0b0f;
-  --panel:#121218;
-  --muted:#9aa0a6;
-  --accent:#e50914;
-  --success:#18e07c;
-  --warning:#ffd166;
+:root {
+  --bg: #111;
+  --bg-card: #1a1a1a;
+  --bg-header: #0f1f13;
+  --accent: #21b24b; /* jeshil bet365 */
+  --accent-soft: #176d32;
+  --text-main: #f5f5f5;
+  --text-muted: #a0a0a0;
+  --border-soft: #262626;
+  --odd-bg: #222;
+  --odd-bg-active: #275a2f;
+  --odd-text: #ffd800;
+  --danger: #ff4d4f;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-.top{
-  position:sticky;top:0;z-index:9;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px;background:#0e0e14;border-bottom:1px solid #1c1c25
+
+* {
+  box-sizing: border-box;
 }
-.brand{font-weight:800;font-size:22px;letter-spacing:0.5px}
-.brand span{color:var(--accent)}
-.tabs{display:flex;gap:8px}
-.tab{
-  background:#161622;border:1px solid #232334;color:#fff;border-radius:8px;
-  padding:8px 12px;font-weight:600;cursor:pointer
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text-main);
 }
-.tab.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;color:#fff}
-main{max-width:1100px;margin:0 auto;padding:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.card{
-  background:var(--panel);border:1px solid #1e1e29;border-radius:12px;padding:12px;
-  display:flex;flex-direction:column;gap:10px
+
+/* HEADER */
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-soft);
 }
-.league{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
-.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.team{display:flex;align-items:center;gap:8px;font-weight:700}
-.vs{color:var(--muted);font-weight:700}
-.status{font-size:12px;color:var(--warning);font-weight:700}
-.live .status{color:var(--success)}
-.badge{font-size:11px;border:1px solid #2b2b36;border-radius:16px;padding:3px 8px;color:var(--muted)}
-.time{font-size:13px;color:#fff}
-.score{font-size:18px;font-weight:800}
-#loading{padding:24px;text-align:center;color:var(--muted)}
-.hidden{display:none}
-.foot{padding:20px;text-align:center;color:var(--muted);opacity:.8}
-@media (max-width:480px){
-  .grid{grid-template-columns:1fr}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+}
+
+.logo span {
+  color: var(--accent);
+}
+
+.login-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* MAIN TABS */
+
+.main-tabs,
+.sub-tabs,
+.category-tabs {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.main-tabs::-webkit-scrollbar,
+.sub-tabs::-webkit-scrollbar,
+.category-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.main-tabs {
+  background: #000;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* SUB TABS */
+
+.sub-tabs {
+  background: #141414;
+}
+
+.sub-tab {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.sub-tab.active {
+  color: #fff;
+  background: var(--accent-soft);
+}
+
+/* CATEGORY */
+
+.category-tabs {
+  background: #141414;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.cat-tab {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.cat-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  margin: 6px 0;
+}
+
+/* CONTENT */
+
+#content {
+  padding: 10px 0 60px;
+}
+
+.matches-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* GROUP BY DAY */
+
+.day-group {
+  margin-bottom: 12px;
+}
+
+.day-header {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: #121212;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* MATCH CARD */
+
+.match-card {
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.match-card:last-child {
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
+.teams-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 40%;
+}
+
+.team .name {
+  font-size: 14px;
+}
+
+.shirt {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: #0f7dff;
+}
+
+.team.away .shirt {
+  background: #e53935;
+}
+
+.score-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 48px;
+  font-size: 12px;
+}
+
+.score {
+  font-weight: 600;
+}
+
+.time {
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+/* ODDS ROW */
+
+.odds-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.odd-btn {
+  padding: 6px 4px;
+  border-radius: 4px;
+  background: var(--odd-bg);
+  border: 1px solid #303030;
+  color: var(--odd-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.odd-btn span.label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.odd-btn:active {
+  background: var(--odd-bg-active);
+}
+
+/* MOBILE SAFE AREA */
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
