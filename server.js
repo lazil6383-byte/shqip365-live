@@ -1,49 +1,65 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
+import dotenv from "dotenv";
 
+dotenv.config();
 const app = express();
 app.use(cors());
 
-// PORT
 const PORT = process.env.PORT || 3000;
 
-// ROUTE HOME
+// API LIVE — SCOREBAT
+const LIVE_API = "https://www.scorebat.com/video-api/v3/feed/?token=demo";
+
+// API MATCHES — BACKUP (ditore)
+const MATCHES_API = "https://livescore-api.vercel.app/matches";
+
 app.get("/", (req, res) => {
   res.send({ status: "API running" });
 });
 
-// API E RE (JSONBIN)
-const PIRATE_URL = "https://api.jsonbin.io/v3/b/66ba6fa9e41b4d34643a0e3f"; 
-
-// ROUTE /live
+// ======================
+//        LIVE
+// ======================
 app.get("/live", async (req, res) => {
   try {
-    const response = await fetch(PIRATE_URL);
-
+    const response = await fetch(LIVE_API);
     if (!response.ok) {
-      return res.status(500).json({
-        error: "API returned an error",
-        status: response.status
-      });
+      return res.status(500).json({ error: "Live API error" });
     }
 
-    const json = await response.json();
+    const data = await response.json();
 
-    // JSONBin kthen: { record: { data: [...] } }
-    const matches = json.record?.data || [];
+    // Filtrim LIVE
+    const liveMatches = data.response.filter(
+      (m) => m.matchview?.status === "LIVE"
+    );
 
-    // Filtron vetëm ndeshjet LIVE
-    const liveMatches = matches.filter(m => m.status === "LIVE");
-
-    res.json({ data: liveMatches });
-
+    res.json({ live: liveMatches });
   } catch (err) {
-    res.status(500).json({ error: "Error fetching live matches", details: err.message });
+    res.status(500).json({ error: "Error fetching live data" });
   }
 });
 
-// RUN SERVER
+// ======================
+//     MATCHES TODAY
+// ======================
+app.get("/matches", async (req, res) => {
+  try {
+    const response = await fetch(MATCHES_API);
+
+    if (!response.ok) {
+      return res.status(500).json({ error: "Matches API error" });
+    }
+
+    const data = await response.json();
+    res.json({ matches: data.data || [] });
+  } catch (err) {
+    res.status(500).json({ error: "Error fetching matches" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
