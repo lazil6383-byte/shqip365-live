@@ -1,28 +1,74 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="sq">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Shqip365 • Live Futboll</title>
-  <link rel="stylesheet" href="/style.css">
+  <meta charset="UTF-8" />
+  <title>Shqip365 Live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="top">
-    <div class="brand">Shqip<span>365</span></div>
-    <nav class="tabs">
-      <button class="tab active" data-tab="live">LIVE</button>
-      <button class="tab" data-tab="upcoming">Së Shpejti</button>
-      <button class="tab" data-tab="finished">Përfunduar</button>
-    </nav>
+  <header class="top-bar">
+    <div class="logo">shqip<span>365</span></div>
+    <button class="login-btn">Login</button>
   </header>
 
+  <nav class="main-tabs">
+    <button class="tab active">Sports</button>
+    <button class="tab">Fantasy</button>
+    <button class="tab">Casino</button>
+    <button class="tab">Extra</button>
+  </nav>
+
+  <section class="sub-tabs">
+    <button class="sub-tab active">Offers</button>
+    <button class="sub-tab">In-Play</button>
+    <button class="sub-tab">Upcoming</button>
+  </section>
+
+  <section class="category-tabs">
+    <button class="cat-tab active">International Soccer</button>
+    <button class="cat-tab">NBA</button>
+    <button class="cat-tab">ATP Finals</button>
+    <button class="cat-tab">Esoccer</button>
+  </section>
+
   <main id="content">
-    <div id="list" class="grid"></div>
-    <div id="loading">Duke u ngarkuar…</div>
-    <div id="empty" class="hidden">S’ka ndeshje për momentin.</div>
+    <div id="matches-container" class="matches-container">
+      <div class="loading">Duke ngarkuar ndeshjet...</div>
+    </div>
   </main>
 
-  <footer class="foot">© Shqip365 • Të dhëna: SportMonks & Football-Data.org</footer>
-  <script src="/script.js"></script>
+  <template id="day-group-template">
+    <div class="day-group">
+      <div class="day-header"></div>
+      <div class="matches-list"></div>
+    </div>
+  </template>
+
+  <template id="match-card-template">
+    <div class="match-card">
+      <div class="teams-row">
+        <div class="team home">
+          <div class="shirt"></div>
+          <span class="name home-name"></span>
+        </div>
+        <div class="score-time">
+          <span class="score"></span>
+          <span class="time"></span>
+        </div>
+        <div class="team away">
+          <div class="shirt"></div>
+          <span class="name away-name"></span>
+        </div>
+      </div>
+      <div class="odds-row">
+        <button class="odd-btn odd-home"></button>
+        <button class="odd-btn odd-draw"></button>
+        <button class="odd-btn odd-away"></button>
+      </div>
+    </div>
+  </template>
+
+  <script src="script.js"></script>
 </body>
 </html>
