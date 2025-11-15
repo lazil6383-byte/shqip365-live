@@ -1,84 +1,104 @@
-// server.js
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-
-// NËSE KE SCRAPER, mund ta shtosh më poshtë.
-// Për tani po lëmë një shembull me ndeshje "fake".
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
+import cheerio from "cheerio";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ====== STATIC FILES (/public) ======
-const publicPath = path.join(__dirname, "public");
-app.use(express.static(publicPath));
+// Fix dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Public folder
+app.use(express.static(path.join(__dirname, "public")));
 app.use(cors());
 
-// ====== DATA SHEMBULL (deri sa të lidhim scraperin) ======
-const demoMatches = [
-  {
-    league: "International Soccer",
-    date: "Thu 13 Nov",
-    home: "Suriname",
-    away: "El Salvador",
-    time: "17:17",
-    live: true,
-    odds: { home: 1.9, draw: 3.1, away: 4.75 }
-  },
-  {
-    league: "International Soccer",
-    date: "Fri 14 Nov",
-    home: "Canada",
-    away: "Ecuador",
-    time: "01:30",
-    live: false,
-    odds: { home: 2.9, draw: 2.87, away: 2.5 }
-  },
-  {
-    league: "International Soccer",
-    date: "Fri 14 Nov",
-    home: "Trinidad & Tobago",
-    away: "Jamaica",
-    time: "01:30",
-    live: false,
-    odds: { home: 3.4, draw: 3.4, away: 2.1 }
-  },
-  {
-    league: "International Soccer",
-    date: "Fri 14 Nov",
-    home: "Bermuda",
-    away: "Curacao",
-    time: "01:00",
-    live: false,
-    odds: { home: 11.0, draw: 5.75, away: 1.22 }
-  },
-  {
-    league: "International Soccer",
-    date: "Fri 14 Nov",
-    home: "Haiti",
-    away: "Costa Rica",
-    time: "03:00",
-    live: false,
-    odds: { home: 4.0, draw: 3.5, away: 2.0 }
+const BET365_URL = "https://www.bet365.com/#/IP/";
+
+// =======================
+//   SCRAPER FUNKSIONAL
+// =======================
+async function scrapeBet365() {
+  const res = await fetch(BET365_URL, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9"
+    }
+  });
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const matches = [];
+
+  $("div.gl-MarketGroup").each((_, el) => {
+    const league = $(el).find("h2").text().trim();
+    if (!league.toLowerCase().includes("football")) return;
+
+    $(el)
+      .find("div.gl-Market_General")
+      .each((_, match) => {
+        const home = $(match)
+          .find(".sl-CouponParticipantWithBookCloses_NameContainer")
+          .first()
+          .text()
+          .trim();
+        const away = $(match)
+          .find(".sl-CouponParticipantWithBookCloses_NameContainer")
+          .last()
+          .text()
+          .trim();
+
+        if (!home || !away) return;
+
+        // Koeficientët 1X2
+        const odds = {};
+        const oddsBtn = $(match).find(".gl-Participant_odds");
+
+        odds.home = parseFloat(oddsBtn.eq(0).text()) || null;
+        odds.draw = parseFloat(oddsBtn.eq(1).text()) || null;
+        odds.away = parseFloat(oddsBtn.eq(2).text()) || null;
+
+        matches.push({
+          league,
+          home,
+          away,
+          date: "Today",
+          time: "--",
+          live: false,
+          odds
+        });
+      });
+  });
+
+  return matches;
+}
+
+// =======================
+//      API ENDPOINT
+// =======================
+app.get("/api/matches", async (req, res) => {
+  try {
+    const data = await scrapeBet365();
+    res.json(data);
+  } catch (err) {
+    console.error("SCRAPER ERROR:", err);
+    res.json([]);
   }
-];
-
-// ====== API – këtu më vonë fut scraperin Shqip365 ======
-app.get("/api/matches", (req, res) => {
-  res.json(demoMatches);
 });
 
-// Mund të mbash edhe endpointet e tjera ekzistuese:
-// app.get("/api/live", ...)
-// app.get("/api/upcoming", ...)
-// etj.
-
-// ====== FRONTEND – index.html ======
-app.get("/", (req, res) => {
-  res.sendFile(path.join(publicPath, "index.html"));
+// =======================
+//      FRONTEND
+// =======================
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ====== START SERVER ======
-app.listen(PORT, () => {
-  console.log(`Shqip365 Live API running on port ${PORT}`);
-});
+// Start server
+app.listen(PORT, () =>
+  console.log(`Shqip365 Bet365 scraper running on port ${PORT}`)
+);
