@@ -1,55 +1,66 @@
+// server.js
 import express from "express";
-import fetch from "node-fetch";
 import cors from "cors";
+import fetch from "node-fetch";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Fix për __dirname në ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
-// ROUTE ROOT
-app.get("/", (req, res) => {
-  res.send("API Live ⚡");
-});
+// ====== Sofascore API – LIVE FOOTBALL ======
+const SOFA_URL = "https://api.sofascore.com/api/v1/sport/football/events/live";
 
-// ROUTE TEST
-app.get("/live", (req, res) => {
-  res.json({ status: "Live", time: new Date() });
-});
+// Convertojmë të dhënat e Sofascore në formatin që përdor faqja jote
+function convertMatch(m) {
+  return {
+    league: m.tournament?.name || "Unknown League",
+    date: new Date(m.startTimestamp * 1000).toDateString(),
+    home: m.homeTeam?.name || "Home",
+    away: m.awayTeam?.name || "Away",
+    time: m.time?.currentPeriodStartTimestamp
+      ? `${m.time?.minute}'`
+      : "—",
+    score: m.homeScore && m.awayScore
+      ? `${m.homeScore.current} - ${m.awayScore.current}`
+      : "",
+    live: m.status?.type === "inprogress",
+    odds: null // Sipas kërkesës: FUTBOLL vetem realtime
+  };
+}
 
-// ROUTE LIVE MATCHES
-app.get("/api/live-matches", async (req, res) => {
+// ====== API endpoint /api/matches ======
+app.get("/api/matches", async (req, res) => {
   try {
-    const response = await fetch(
-      "https://www.sportybet.com/api/ng/betting/fixtures/live",
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
-      }
-    );
+    const response = await fetch(SOFA_URL);
+    const json = await response.json();
 
-    const text = await response.text();
+    const events = json.events || [];
 
-    try {
-      const json = JSON.parse(text);
-      res.json(json);
-    } catch (err) {
-      res.json({
-        error: "SportyBet blocked JSON",
-        details: text.slice(0, 200),
-      });
-    }
-  } catch (error) {
-    res.json({
-      error: "Server error",
-      details: error.message,
-    });
+    // Convertojmë të gjithë eventet
+    const formatted = events.map(convertMatch);
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("Error fetching Sofascore:", err);
+    res.status(500).json({ error: "Failed to load live data" });
   }
 });
 
-// PORT
-const PORT = process.env.PORT || 10000;
+// ====== FRONTEND ======
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// ====== START ======
 app.listen(PORT, () => {
-  console.log(`API Running on port ${PORT}`);
+  console.log(`Shqip365 LIVE running on port ${PORT}`);
 });
