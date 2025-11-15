@@ -1,29 +1,23 @@
-import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
+const express = require("express");
+const fetch = require("node-fetch");
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 3000;
 
-// HEADERS që duken si telefon i vërtetë
-const mobileHeaders = {
-  "User-Agent":
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Mobile/15E148 Safari/604.1",
-  "Accept": "application/json, text/plain, */*",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Referer": "https://www.sportybet.com/",
-  "Origin": "https://www.sportybet.com",
-  "Connection": "keep-alive",
-};
+// Lejojmë akses publik për frontend
+app.use(express.static("public"));
 
 app.get("/api/live", async (req, res) => {
   try {
     const url =
-      "https://www.sportybet.com/api/ng/factsCenter/liveOrPrematchEvents?sbVersion=400&marketGroupId=1&category=1&leagueId=0";
+      "https://www.sportybet.com/api/ng/fsports/events/live?sportId=1";
 
     const response = await fetch(url, {
-      method: "GET",
-      headers: mobileHeaders,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0 Safari/537.36",
+        Accept: "application/json",
+      },
     });
 
     if (!response.ok) {
@@ -33,17 +27,13 @@ app.get("/api/live", async (req, res) => {
     }
 
     const data = await response.json();
-    return res.json(data);
-
+    res.json(data);
   } catch (err) {
     console.error("SCRAPER ERROR:", err);
-    res.status(500).json({ error: "Scraper crashed" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("API LIVE ✔️ shqip365 scraper running");
+app.listen(PORT, () => {
+  console.log(`API Running on port ${PORT}`);
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API Running on port ${PORT}`));
