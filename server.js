@@ -5,38 +5,45 @@ import cors from "cors";
 const app = express();
 app.use(cors());
 
-app.get("/api/live", async (req, res) => {
+app.get("/", (req, res) => {
+  res.send("API Live ⚡");
+});
+
+app.get("/live", async (req, res) => {
+  const url = "https://www.sportybet.com/api/ng/betting/fixtures/live";
+
   try {
-    const response = await fetch("https://www.sportybet.com/api/ng/betting/fixtures/live", {
+    const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.sportybet.com/ng/",
-        "Origin": "https://www.sportybet.com"
+        "User-Agent":
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://www.sportybet.com/",
+        Origin: "https://www.sportybet.com",
+        Connection: "keep-alive"
       }
     });
 
     const text = await response.text();
 
-    // nëse s’kthehet JSON → nuk e lexojmë si JSON direkt
     try {
-      const data = JSON.parse(text);
-      return res.json(data);
-    } catch (e) {
+      const json = JSON.parse(text);
+      return res.json(json);
+    } catch (err) {
       return res.json({
         error: "SportyBet blocked JSON",
-        details: text.slice(0, 200)
+        details: "",
+        raw: text
       });
     }
-
-  } catch (err) {
-    return res.json({
-      error: "Server crash",
-      details: err.toString()
+  } catch (error) {
+    res.json({
+      error: "Server error",
+      details: error.message
     });
   }
 });
 
-app.listen(10000, () => {
-  console.log("API Running on port 10000");
-});
+const port = process.env.PORT || 10000;
+app.listen(port, () => console.log("API Running on port", port));
