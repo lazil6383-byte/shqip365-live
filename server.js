@@ -1,6 +1,6 @@
-import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
+const express = require("express");
+const fetch = require("node-fetch");
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
@@ -21,13 +21,6 @@ app.get("/api/live", async (req, res) => {
         Connection: "keep-alive",
       },
     });
-
-    if (!response.ok) {
-      return res.status(500).json({
-        error: "SportyBet blocked the request",
-        status: response.status,
-      });
-    }
 
     const data = await response.json();
     res.json(data);
