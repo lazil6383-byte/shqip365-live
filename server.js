@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Fix dirname për ES Modules
+// Fix për __dirname në ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -17,8 +17,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Sofascore URL
-const SOFA_URL =
-  "https://api.sofascore.com/api/v1/sport/football/events/live";
+const SOFA_URL = "https://api.sofascore.com/api/v1/sport/football/events/live";
 
 // Convertim Sofa → Shqip365 format
 function convertMatch(m) {
@@ -33,7 +32,7 @@ function convertMatch(m) {
         ? `${m.homeScore.current} - ${m.awayScore.current}`
         : "",
     live: m.status?.type === "inprogress",
-    odds: null,
+    odds: null
   };
 }
 
@@ -42,9 +41,11 @@ app.get("/api/matches", async (req, res) => {
   try {
     const response = await fetch(SOFA_URL, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.sofascore.com/",
+        "Origin": "https://www.sofascore.com"
       },
     });
 
@@ -61,7 +62,7 @@ app.get("/api/matches", async (req, res) => {
     const formatted = events.map(convertMatch);
 
     res.json({
-      count: formatted.length,
+      success: true,
       matches: formatted,
     });
   } catch (err) {
